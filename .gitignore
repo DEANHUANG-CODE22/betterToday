@@ -1,0 +1,38 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.log
+.DS_Store
+*.pem
+
+# 登录态和回放缓存，不要提交
+tools/.coros-session.json
+tools/.replay-cache.json
+
+# 本机 SDK 路径
+mobile/android/local.properties
+
+# 安装包。debug 包约 246 MB，超过 GitHub 单文件 100 MB 上限
+*.apk
+
+# Android 编译产物。源码在 mobile/android，要提交
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/.cxx/
+
+# 真实账号样例，含坐标
+docs/coros-mcp/sample-*.json
+
+# 内部文档和真实数据，只留本地（2026-11-11 从公开仓库撤下）
+docs/PRD.md
+docs/PRD.v0.6-2026-11-10.md
+docs/ROADMAP.md
+docs/HANDOFF.md
+docs/WORKLOG.md
+docs/PITFALLS.md
+docs/AGENT_PROMPT.md
+docs/coros-integration.md
+docs/coros-mcp/
+mobile/src/lib/__tests__/fixtures/return-2026-10-01.ts

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <title>NowORNever 授权</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; background: #0E1116; color: #EEF1F5; display: grid; place-items: center; min-height: 100vh; margin: 0; }
+    a { color: #FF6B2C; }
+  </style>
+</head>
+<body>
+  <main>
+    <p>正在返回 NowORNever…</p>
+    <p><a id="open" href="#">如果没有自动跳转，点这里</a></p>
+  </main>
+  <script>
+    // 把 COROS 回传的 code/state 原样交给 App；授权码绑定 App 内的 PKCE verifier，单独拿到也无法换取 token
+    var target = 'nowornever://oauth/callback' + window.location.search;
+    document.getElementById('open').href = target;
+    window.location.replace(target);
+  </script>
+</body>
+</html>

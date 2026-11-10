@@ -1,0 +1,13 @@
+{
+  "name": "nowornever-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "coros:login": "node coros-probe.mjs login",
+    "coros:list": "node coros-probe.mjs list",
+    "screenshot": "node screenshot.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^24.0.0"
+  }
+}
