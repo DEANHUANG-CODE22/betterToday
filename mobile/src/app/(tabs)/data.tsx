@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { LineChart } from '@/components/charts';
 import { ChevronIcon } from '@/components/icons';
@@ -26,9 +26,22 @@ const ROWS: { key: keyof DailyHealth; name: string; unit?: string; metric?: stri
   { key: 'respiration', name: '呼吸', unit: '次/分' },
 ];
 
+/** 这一天有没有能放上这一页的数。 */
+const hasDailyData = (row: DailyHealth) =>
+  ROWS.some((field) => typeof row[field.key] === 'number') || !!row.stressSeries?.length;
+
 export default function DailyHealthScreen() {
   const { data, today, loading } = useData();
-  const [date, setDate] = useState(today);
+  // 默认打开最近有数据的那天（不晚于今天）。早上今天往往还没数，打开只剩一句「没有」。
+  // 用户翻过之后按用户翻到的那天；数据刷新不把人拉走。
+  const latest = useMemo(
+    () => data.daily.filter((d) => d.date <= today && hasDailyData(d)).map((d) => d.date).sort().at(-1) ?? today,
+    [data.daily, today],
+  );
+  const [picked, setPicked] = useState<string>();
+  const date = picked ?? latest;
+  const setDate = (next: string) => setPicked(next);
+  const atLatest = date === latest;
   const [limitNote, setLimitNote] = useState<string>();
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isToday = date === today;
@@ -61,7 +74,7 @@ export default function DailyHealthScreen() {
             {isToday ? '今天' : fmtDate(date)}
           </Text>
           <Text style={{ color: limitNote ? colors.text : colors.sub, fontSize: font.footnote, minHeight: 18 }}>
-            {limitNote ?? (isToday ? fmtDate(today) : weekday(date))}
+            {limitNote ?? (isToday ? fmtDate(today) : atLatest ? `${weekday(date)} · 今天还没有数据` : weekday(date))}
           </Text>
         </View>
         <Pressable
@@ -82,9 +95,9 @@ export default function DailyHealthScreen() {
           <Text style={{ color: colors.sub, fontSize: font.title, opacity: isToday ? 0.35 : 1 }}>›</Text>
         </Pressable>
       </View>
-      {!isToday && (
-        <Pressable accessibilityRole="button" accessibilityLabel="回到今天" onPress={() => { if (noteTimer.current) clearTimeout(noteTimer.current); setLimitNote(undefined); setDate(today); }} style={{ alignSelf: 'center', minHeight: touch, justifyContent: 'center', paddingHorizontal: space.md }}>
-          <Muted>回到今天</Muted>
+      {!atLatest && (
+        <Pressable accessibilityRole="button" accessibilityLabel={latest === today ? '回到今天' : '回到最近有数据的一天'} onPress={() => { if (noteTimer.current) clearTimeout(noteTimer.current); setLimitNote(undefined); setPicked(undefined); }} style={{ alignSelf: 'center', minHeight: touch, justifyContent: 'center', paddingHorizontal: space.md }}>
+          <Muted>{latest === today ? '回到今天' : '回到最近一天'}</Muted>
         </Pressable>
       )}
       <DailyFields row={row} date={date} dateLabel={fmtDate(date)} daily={data.daily} />
