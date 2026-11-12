@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import { HrvRing, Ring } from '@/components/Ring';
 import { colors, font, space } from '@/components/theme';
 import { Card, LoadingBlock, Muted, Screen } from '@/components/ui';
-import { fmtHM } from '@/lib/metrics';
+import { fmtHM, fmtHMShort } from '@/lib/metrics';
 import { scheduleMorning } from '@/lib/notify';
 import { useData } from '@/lib/store';
 import { judgmentTone } from '@/lib/trend';
@@ -51,7 +51,7 @@ export default function SleepScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
           <Ring
             label="睡眠时长"
-            value={sleepNight ? fmtHM(sleepNight.totalMin) : '没有'}
+            value={sleepNight ? fmtHMShort(sleepNight.totalMin) : '没有'}
             progress={sleepNight?.sleepScore != null ? sleepNight.sleepScore / 100 : 0}
             color={colors.sleep.light}
             when={sleepNight ? dayLabel(sleepNight.date) : undefined}
@@ -94,9 +94,9 @@ export default function SleepScreen() {
         <Card plain>
           {sleepNight.bedtime || sleepNight.wakeTime ? <Muted>{hhmm(sleepNight.bedtime)}–{hhmm(sleepNight.wakeTime)}</Muted> : null}
           {sleepNight.sleepScore != null ? <Text style={{ color: colors.text, fontSize: font.body }}>评分 {sleepNight.sleepScore}</Text> : null}
-          <Muted>深睡 {fmtHM(sleepNight.deepMin)} · 浅睡 {fmtHM(sleepNight.lightMin)} · REM {fmtHM(sleepNight.remMin)}</Muted>
-          <Muted>清醒 {fmtHM(sleepNight.awakeMin)}{sleepNight.awakeCount != null ? ` · 醒过 ${sleepNight.awakeCount} 次` : ''}</Muted>
-          {sleepNight.napsMin ? <Muted>小睡 {fmtHM(sleepNight.napsMin)}</Muted> : null}
+          <Muted>深睡 {fmtHMShort(sleepNight.deepMin)} · 浅睡 {fmtHMShort(sleepNight.lightMin)} · REM {fmtHMShort(sleepNight.remMin)}</Muted>
+          <Muted>清醒 {fmtHMShort(sleepNight.awakeMin)}{sleepNight.awakeCount != null ? ` · 醒过 ${sleepNight.awakeCount} 次` : ''}</Muted>
+          {sleepNight.napsMin ? <Muted>小睡 {fmtHMShort(sleepNight.napsMin)}</Muted> : null}
           {sleepNight.sleepHrAvg != null ? <Muted>睡眠心率 {Math.round(sleepNight.sleepHrAvg)}（{sleepNight.sleepHrMin ?? '--'}–{sleepNight.sleepHrMax ?? '--'}）</Muted> : null}
         </Card>
       ) : null}
@@ -104,7 +104,7 @@ export default function SleepScreen() {
         <Card plain>
           <Muted>夜间 HRV</Muted>
           {hrvNight.hrvLow != null && hrvNight.hrvHigh != null ? <Muted>正常区间 {hrvNight.hrvLow}–{hrvNight.hrvHigh} ms</Muted> : null}
-          {hrvNight.hrvBaseline != null ? <Muted>基线 {hrvNight.hrvBaseline} ms</Muted> : null}
+          {hrvNight.hrvBaseline != null ? <Muted>手表基线 {hrvNight.hrvBaseline} ms</Muted> : null}
         </Card>
       ) : null}
       {recoveryNight && (recoveryNight.recoveryLevel || recoveryNight.fullRecoveryH != null) ? (

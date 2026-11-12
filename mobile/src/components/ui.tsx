@@ -37,7 +37,7 @@ export function Screen({ children, mockNote, scrollRef }: { children: ReactNode;
         </Pressable>
       ) : null}
       {source === 'mock' && note ? (
-        <Text style={{ color: colors.text, fontSize: font.body, fontWeight: '600', lineHeight: 22 }}>{note}</Text>
+        <Text style={{ color: colors.sub, fontSize: font.subhead, lineHeight: 20 }}>{note}</Text>
       ) : null}
       {stale ? (
         <Text style={{ color: colors.text, fontSize: font.body, lineHeight: 22 }}>{stale}</Text>
@@ -164,6 +164,6 @@ const styles = StyleSheet.create({
   plainTile: { flex: 1, gap: 2 },
   tileValue: { color: colors.text, fontSize: font.metric, fontWeight: '700', fontVariant: ['tabular-nums'] },
   tileUnit: { color: colors.sub, fontSize: font.footnote, fontWeight: '500' },
-  chip: { minHeight: touch, paddingHorizontal: space.md, justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: colors.border },
+  chip: { minHeight: touch, paddingHorizontal: space.md, justifyContent: 'center', borderRadius: radius, borderWidth: 1, borderColor: colors.border },
   banner: { color: colors.sub, fontSize: font.footnote, lineHeight: 18 },
 });

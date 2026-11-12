@@ -41,7 +41,12 @@ export default function ActivityDetail() {
         <Row>
           <MetricTile plain label="平均心率" value={a.avgHr ? String(a.avgHr) : '--'} unit="bpm" />
           <MetricTile plain label="最大心率" value={a.maxHr ? String(a.maxHr) : '--'} unit="bpm" />
-          <MetricTile plain label="爬升 / 下降" value={a.elevGainM != null ? `${a.elevGainM} / ${a.elevLossM ?? '--'}` : '--'} unit={a.elevGainM != null ? 'm' : undefined} />
+          <MetricTile
+            plain
+            label={a.elevGainM != null && a.elevLossM == null ? '爬升' : '爬升 / 下降'}
+            value={a.elevGainM != null ? (a.elevLossM != null ? `${a.elevGainM} / ${a.elevLossM}` : String(a.elevGainM)) : '--'}
+            unit={a.elevGainM != null ? 'm' : undefined}
+          />
         </Row>
       </Card>
 

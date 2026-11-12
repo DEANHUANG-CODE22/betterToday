@@ -4,6 +4,20 @@ import { hrvRingMark } from '@/lib/hrvGauge';
 import { ChevronIcon } from './icons';
 import { colors, font, space, touch } from './theme';
 
+/** 「6 时 21 分」：数字用环里的字号，单位降到 footnote，环里才放得下。没有数字（「没有」）原样。 */
+function RingValue({ value }: { value: string }) {
+  if (!/\d/.test(value)) return <>{value}</>;
+  return (
+    <>
+      {value.split(/(\d+(?:\.\d+)?)/).filter(Boolean).map((part, i) =>
+        /^\d/.test(part)
+          ? <Text key={i}>{part}</Text>
+          : <Text key={i} style={{ color: colors.sub, fontSize: font.footnote, fontWeight: '500' }}>{part}</Text>,
+      )}
+    </>
+  );
+}
+
 /** 一个指标一个环。progress 缺省或为 0 时只留轨道。 */
 export function Ring({
   label,
@@ -48,14 +62,14 @@ export function Ring({
           ) : null}
         </Svg>
         <Text style={{ position: 'absolute', color: value === '没有' ? colors.sub : colors.text, fontSize: font.lead, fontWeight: '700', fontVariant: ['tabular-nums'] }}>
-          {value}
+          <RingValue value={value} />
         </Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
         <Text style={{ color: colors.sub, fontSize: font.footnote }}>{label}</Text>
         {onPress ? <ChevronIcon color={colors.sub} size={14} /> : null}
       </View>
-      {when ? <Text style={{ color: colors.sub, fontSize: font.caption }}>{when}</Text> : null}
+      {when ? <Text style={{ color: colors.sub, fontSize: font.footnote }}>{when}</Text> : null}
     </View>
   );
   if (!onPress) return <View style={{ flex: 1 }} accessibilityLabel={accessibilityLabel}>{body}</View>;
@@ -136,7 +150,7 @@ export function HrvRing({
         <Text style={{ color: colors.sub, fontSize: font.footnote }}>{label}</Text>
         {onPress ? <ChevronIcon color={colors.sub} size={14} /> : null}
       </View>
-      {when ? <Text style={{ color: colors.sub, fontSize: font.caption }}>{when}</Text> : null}
+      {when ? <Text style={{ color: colors.sub, fontSize: font.footnote }}>{when}</Text> : null}
     </View>
   );
   if (!onPress) return <View style={{ flex: 1 }} accessibilityLabel={accessibilityLabel}>{body}</View>;

@@ -173,7 +173,7 @@ export default function SportTab() {
 
       <Row>
         <View style={{ flex: 1 }}>
-        <Card style={{ flex: 1 }}>
+        <Card style={{ flex: 1, justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
             <Muted style={{ fontSize: font.footnote }}>本周</Muted>
             <Text style={{ color: colors.text, fontSize: font.metric, fontWeight: '700', fontVariant: ['tabular-nums'] }}>
@@ -204,7 +204,7 @@ export default function SportTab() {
           <View
             accessible
             accessibilityRole="image"
-            accessibilityLabel={`${month.label} ${month.total} 次`}
+            accessibilityLabel={`${month.label} ${month.total} 次，今天 ${Number(today.slice(8, 10))} 日`}
             style={{ gap: 3 }}
           >
             {Array.from({ length: month.cells.length / 7 }, (_, row) => (
@@ -217,6 +217,9 @@ export default function SportTab() {
                       aspectRatio: 1,
                       borderRadius: 3,
                       backgroundColor: !cell.date ? 'transparent' : cell.count > 0 ? colors.blue : colors.cardAlt,
+                      // 今天描一圈正文色的边，不用橙色：橙色只给当前 Tab 和选中的东西。
+                      borderWidth: cell.date === today ? 1.5 : 0,
+                      borderColor: colors.text,
                     }}
                   />
                 ))}

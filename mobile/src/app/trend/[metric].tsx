@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import { LineChart, StackedBar } from '@/components/charts';
 import { colors, font, space } from '@/components/theme';
 import { Big, Card, Chip, Empty, LoadingBlock, Muted, Row, Screen } from '@/components/ui';
-import { fmtHM } from '@/lib/metrics';
+import { fmtHM, fmtHMShort } from '@/lib/metrics';
 import { useData } from '@/lib/store';
 import {
   aligned,
@@ -104,7 +104,7 @@ function SeriesBody({
   const day = model.dates[index] ?? anchor;
   const value = model.values[index];
   const base = seriesBaseline(model.points, day, spec.riseIsWarm ? 0.05 : 0.1);
-  const shown = value == null ? '没有' : metric === 'sleep' ? fmtHM(value * 60) : BARS.has(metric) ? Math.round(value).toLocaleString() : value.toFixed(spec.digits);
+  const shown = value == null ? '没有' : metric === 'sleep' ? fmtHMShort(value * 60) : BARS.has(metric) ? Math.round(value).toLocaleString() : value.toFixed(spec.digits);
   const sentence = baselineSentence(base, spec.unit, spec.digits);
   const lineColor = spec.riseIsWarm && model.base.trend === 'up' ? colors.fair : metric === 'sleep' ? colors.sleep.light : colors.text;
   const night = data.sleep.find((s) => s.date === day);
@@ -182,10 +182,10 @@ function SleepLines({ night }: { night: SleepNight }) {
   return (
     <Card plain>
       <Muted>当晚各期占比</Muted>
-      {stages.length ? <StackedBar segments={stages} format={fmtHM} accessibilityLabel="当晚睡眠分期比例" /> : null}
+      {stages.length ? <StackedBar segments={stages} format={fmtHMShort} accessibilityLabel="当晚睡眠分期比例" /> : null}
       {window ? <Muted>{window}</Muted> : null}
       {night.awakeCount != null ? <Muted>醒过 {night.awakeCount} 次</Muted> : null}
-      {night.napsMin ? <Muted>小睡 {fmtHM(night.napsMin)}</Muted> : null}
+      {night.napsMin ? <Muted>小睡 {fmtHMShort(night.napsMin)}</Muted> : null}
       {night.sleepScore != null ? <Muted>评分 {night.sleepScore}</Muted> : null}
       {night.sleepHrAvg != null ? <Muted>睡眠心率 {Math.round(night.sleepHrAvg)}（{night.sleepHrMin ?? '--'}–{night.sleepHrMax ?? '--'}）</Muted> : null}
     </Card>

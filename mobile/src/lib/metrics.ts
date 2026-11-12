@@ -221,8 +221,20 @@ export function pct(x?: number): string {
   return x == null ? '--' : `${Math.round(Math.abs(x) * 100)}%`;
 }
 
+/** 正文里的时长：「6 小时 21 分」。不足一小时只写分。 */
 export function fmtHM(min: number): string {
-  return `${Math.floor(min / 60)}h${String(Math.round(min % 60)).padStart(2, '0')}m`;
+  const total = Math.round(min);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h ? `${h} 小时 ${m} 分` : `${m} 分`;
+}
+
+/** 环里、分期行这类挤的地方：「6 时 21 分」，和运动记录列表同一套。 */
+export function fmtHMShort(min: number): string {
+  const total = Math.round(min);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return h ? `${h} 时 ${m} 分` : `${m} 分`;
 }
 
 export function fmtDuration(s: number): string {
