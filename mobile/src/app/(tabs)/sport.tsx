@@ -47,6 +47,30 @@ function WeekBars({ distances }: { distances: number[] }) {
   );
 }
 
+/**
+ * 列表左侧的时长。不用「18:00」「2:28:20」：前者像下午六点，两种冒号写法也混在一列里。
+ * 精确到秒在单次详情里看。
+ */
+function DurationAnchor({ seconds }: { seconds: number }) {
+  const total = Math.max(0, Math.round(seconds / 60));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  const num = { color: colors.text, fontSize: font.lead, fontWeight: '700', fontVariant: ['tabular-nums'] } as const;
+  const unit = { color: colors.sub, fontSize: font.footnote, fontWeight: '500' } as const;
+  return (
+    <Text accessibilityLabel={h ? `${h} 小时 ${m} 分钟` : `${m} 分钟`}>
+      {h ? (
+        <>
+          <Text style={num}>{h}</Text>
+          <Text style={unit}> 时 </Text>
+        </>
+      ) : null}
+      <Text style={num}>{m}</Text>
+      <Text style={unit}> 分</Text>
+    </Text>
+  );
+}
+
 function ActivityRow({ a }: { a: Activity }) {
   const d = new Date(a.startTime);
   const quiet = [
@@ -59,7 +83,7 @@ function ActivityRow({ a }: { a: Activity }) {
     <Card onPress={() => router.push({ pathname: '/activity/[id]', params: { id: a.id } })} style={{ paddingVertical: space.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
         <View style={{ minWidth: 76, minHeight: touch, alignItems: 'flex-start', justifyContent: 'center' }}>
-          <Text style={{ color: colors.text, fontSize: font.lead, fontWeight: '700', fontVariant: ['tabular-nums'] }}>{fmtDuration(a.durationS)}</Text>
+          <DurationAnchor seconds={a.durationS} />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.sm }}>

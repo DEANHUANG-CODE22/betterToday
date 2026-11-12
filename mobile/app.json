@@ -3,7 +3,7 @@
     "name": "betterToday",
     "slug": "nowornever",
     "scheme": "nowornever",
-    "version": "0.1.31",
+    "version": "0.1.32",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",

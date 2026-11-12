@@ -292,10 +292,11 @@ export function dailyAdvice(data: Dataset, date: ISODate, memory?: AdviceMemory)
       next = {
         ...next,
         kind: 'aerobic',
-        title: priorLabel ? `昨夜没数据，最近是${priorLabel}，今天先按有氧` : '昨夜没数据，今天先按有氧',
+        // 标题只给结论。最近一条是哪天写在依据里，正文只给动作，三处不再各说一遍缺了昨夜。
+        title: '昨夜没数据，今天先按有氧',
         duration: '45–75 分钟',
         zones: 'Z2 为主',
-        narrative: '昨晚的睡眠没同步上来，我不给强度课。想动就 Z2，别顶阈值。',
+        narrative: '想动就 Z2，别顶阈值。',
       };
     }
     if (next.confidence === 'low' && next.kind === 'intensity') {

@@ -2,7 +2,7 @@ import { useEffect, useRef, type ComponentRef, type ReactNode, type RefObject } 
 import { AccessibilityInfo, Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useData } from '@/lib/store';
-import type { Trend } from '@/lib/metrics';
+import { fmtDateTime, zhMonthDay, type Trend } from '@/lib/metrics';
 import { colors, font, radius, space, touch } from './theme';
 
 export type Scroller = ComponentRef<typeof ScrollView>;
@@ -10,9 +10,15 @@ export type Scroller = ComponentRef<typeof ScrollView>;
 const DEFAULT_MOCK = '当前显示的是模拟数据。';
 
 export function Screen({ children, mockNote, scrollRef }: { children: ReactNode; mockNote?: string | null; scrollRef?: RefObject<Scroller | null> }) {
-  const { source, error, dismissError } = useData();
+  const { source, error, dismissError, data, today, lastSync } = useData();
   const insets = useSafeAreaInsets();
   const note = mockNote === null ? null : (mockNote ?? DEFAULT_MOCK);
+  // 最新一天早于今天：环下的小字日期不够显眼，在页顶说一次数据停在哪天。
+  // 只说停在哪，不猜原因（没同步、没戴表都可能）。演练模式的日期是造的，不提示。
+  const latest = [...data.sleep.map((s) => s.date), ...data.daily.map((d) => d.date)].sort().at(-1);
+  const stale = source !== 'scenario' && latest != null && latest < today
+    ? `数据停在 ${zhMonthDay(new Date(`${latest}T00:00:00`))}${lastSync ? `，上次同步 ${fmtDateTime(lastSync)}` : ''}。点右上角刷新。`
+    : null;
   return (
     <ScrollView
       ref={scrollRef}
@@ -32,6 +38,9 @@ export function Screen({ children, mockNote, scrollRef }: { children: ReactNode;
       ) : null}
       {source === 'mock' && note ? (
         <Text style={{ color: colors.text, fontSize: font.body, fontWeight: '600', lineHeight: 22 }}>{note}</Text>
+      ) : null}
+      {stale ? (
+        <Text style={{ color: colors.text, fontSize: font.body, lineHeight: 22 }}>{stale}</Text>
       ) : null}
       {children}
     </ScrollView>
