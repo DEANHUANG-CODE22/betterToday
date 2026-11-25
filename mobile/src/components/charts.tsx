@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
+import { niceTicks } from '@/lib/ticks';
 import { colors, font, space } from './theme';
 
 function useWidth(): [number, (e: LayoutChangeEvent) => void] {
@@ -90,7 +91,7 @@ export function LineChart({
   const pad = domain ? 0 : (max - min) * 0.1 || 1;
   const lo = bars ? min : min - pad;
   const hi = max + pad;
-  const ticks = bars ? [max, 0] : [hi - pad, lo + pad];
+  const ticks = bars ? [max, 0] : domain ? [max, min] : niceTicks(min, max);
   const left = axisLeft(ticks.map(format));
   const y = (v: number) => {
     const r = (v - lo) / (hi - lo || 1);
@@ -165,7 +166,7 @@ export function LineChart({
                     height={h}
                     rx={2}
                     fill={s.color}
-                    opacity={selected == null || selected === i ? 1 : 0.4}
+                    opacity={selected == null || selected === i ? 1 : 0.55}
                   />
                 );
               });
@@ -192,10 +193,12 @@ export function LineChart({
                 }
               }
             }
+            // 这一天有标记色（睡眠评分档、HRV 出区间）时，手柄跟着用标记色，不让同一个点在两处颜色不同。
+            const cursorColor = (handleAt >= 0 && si === 0 && marks?.[handleAt]) || s.color;
             const cursor = handleAt >= 0
               ? [
-                  <Circle key="cursor-ring" cx={x(handleAt)} cy={y(s.values[handleAt]!)} r={7} fill={colors.card} stroke={s.color} strokeWidth={2} />,
-                  <Circle key="cursor-dot" cx={x(handleAt)} cy={y(s.values[handleAt]!)} r={3} fill={s.color} />,
+                  <Circle key="cursor-ring" cx={x(handleAt)} cy={y(s.values[handleAt]!)} r={7} fill={colors.card} stroke={cursorColor} strokeWidth={2} />,
+                  <Circle key="cursor-dot" cx={x(handleAt)} cy={y(s.values[handleAt]!)} r={3} fill={cursorColor} />,
                 ]
               : [];
             return [

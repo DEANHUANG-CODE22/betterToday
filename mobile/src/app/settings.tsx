@@ -114,13 +114,12 @@ export default function Settings() {
       <SectionTitle>我现在的状态</SectionTitle>
       <Card>
         <Muted>
-          中断满 7 天时我会问你一次。也可以现在先说——它决定回来那几周走多慢。
-          声明只在进入回归期时起作用，不会提前改变今天的建议。
+          {'中断满 7 天时我会问你一次。也可以现在先说——它决定回来那几周走多慢。声明只在进入回归期时起作用，不会提前改变今天的建议。'}
         </Muted>
         <Text style={{ color: colors.text, fontSize: font.callout, fontWeight: '600' }}>
           {returnKind ? `当前：${RETURN_KIND_LABEL[returnKind]}` : '还没声明（默认按 3–4 周算）'}
         </Text>
-        {returnKind && returnKindFor ? <Muted>这次中断从 {returnKindFor} 起算</Muted> : null}
+        {returnKind && returnKindFor ? <Muted>这次中断从 {Number(returnKindFor.slice(5, 7))} 月 {Number(returnKindFor.slice(8, 10))} 日起算</Muted> : null}
         <View style={{ gap: space.xs }}>
           {RETURN_KIND_ORDER.map((kind) => (
             <Pressable
@@ -130,16 +129,21 @@ export default function Settings() {
               onPress={() => declare(kind)}
               style={({ pressed }) => ({
                 minHeight: touch,
-                justifyContent: 'center',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: space.md,
                 borderTopWidth: 1,
                 borderTopColor: colors.border,
                 opacity: pressed ? 0.6 : 1,
               })}
             >
-              <Text style={{ color: returnKind === kind ? colors.accent : colors.text, fontSize: font.body, fontWeight: returnKind === kind ? '700' : '400' }}>
+              <Text style={{ flex: 1, color: colors.text, fontSize: font.body, fontWeight: returnKind === kind ? '700' : '400' }}>
                 {RETURN_KIND_LABEL[kind]}
-                {returnKind === kind ? '  ✓' : ''}
               </Text>
+              {/* 单选圈：没选时也看得出这一行能点。选中用正文色，橙色留给 Agent。 */}
+              <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: returnKind === kind ? colors.text : colors.sub, alignItems: 'center', justifyContent: 'center' }}>
+                {returnKind === kind ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.text }} /> : null}
+              </View>
             </Pressable>
           ))}
         </View>

@@ -106,7 +106,8 @@ function SeriesBody({
   const base = seriesBaseline(model.points, day, spec.riseIsWarm ? 0.05 : 0.1);
   const shown = value == null ? '没有' : metric === 'sleep' ? fmtHMShort(value * 60) : BARS.has(metric) ? Math.round(value).toLocaleString() : value.toFixed(spec.digits);
   const sentence = baselineSentence(base, spec.unit, spec.digits);
-  const lineColor = spec.riseIsWarm && model.base.trend === 'up' ? colors.fair : metric === 'sleep' ? colors.sleep.light : colors.text;
+  // 柱用测量蓝（原来是白柱压到 40% 成了灰）；线仍是正文色，静息心率升高时用暖色。
+  const lineColor = spec.riseIsWarm && model.base.trend === 'up' ? colors.fair : metric === 'sleep' ? colors.sleep.light : BARS.has(metric) ? colors.blue : colors.text;
   const night = data.sleep.find((s) => s.date === day);
   const resting = metric === 'hrv' ? pointsOf('restingHr', data).find((p) => p.date === day)?.value : undefined;
   const marks = metric === 'sleep'
@@ -121,6 +122,14 @@ function SeriesBody({
       low: model.dates.map((date) => data.sleep.find((s) => s.date === date)?.hrvLow),
       high: model.dates.map((date) => data.sleep.find((s) => s.date === date)?.hrvHigh),
     }
+    : undefined;
+  // 出了手表区间的夜晚用黄点，和睡眠页 HRV 环上出区间的点同色。
+  const hrvMarks = band
+    ? model.values.map((v, i) => {
+      const lo = band.low[i];
+      const hi = band.high[i];
+      return v != null && lo != null && hi != null && (v < lo || v > hi) ? colors.fair : undefined;
+    })
     : undefined;
   const showChart = enoughToChart(model.values);
   const baselineLine = base.avg28;
@@ -147,7 +156,7 @@ function SeriesBody({
             labels={[dayLabel(model.dates[0]), dayLabel(model.dates.at(-1)!)]}
             format={(v) => (spec.digits > 0 ? v.toFixed(spec.digits) : Math.round(v).toLocaleString())}
             band={band}
-            marks={marks}
+            marks={marks ?? hrvMarks}
             bars={BARS.has(metric)}
             minSpan={metric === 'sleep' ? 4 : undefined}
             domain={metric === 'stress' ? [0, 100] : undefined}
@@ -159,7 +168,7 @@ function SeriesBody({
             ]}
           />
           {metric === 'sleep' && marks?.some(Boolean) ? <Muted>绿点 85 分及以上，黄点 70–84，红点 70 分以下。</Muted> : null}
-          {metric === 'hrv' && band && band.low.some((v) => v != null) ? <Muted>色带是手表给的正常区间。</Muted> : null}
+          {metric === 'hrv' && band && band.low.some((v) => v != null) ? <Muted>{hrvMarks?.some(Boolean) ? '色带是手表给的正常区间，黄点是出了区间的夜晚。' : '色带是手表给的正常区间。'}</Muted> : null}
         </Card>
       ) : (
         <Muted>天数还不够，凑满 4 天才画趋势。</Muted>

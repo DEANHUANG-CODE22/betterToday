@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { signIn, signOut, loadSession } from './coros/oauth';
 import { syncFromCoros, type SyncReport } from './coros/sync';
-import { clearAll, clearData, getMeta, loadAdviceLogs, loadDataset, saveAdviceLog, setAdviceAction, setMeta, upsertDataset, type AdviceLog } from './db';
+import { clearAll, clearData, getMeta, loadAdviceLogs, loadDataset, loadFeelings, saveAdviceLog, setAdviceAction, setFeeling, setMeta, upsertDataset, type AdviceLog } from './db';
+import type { Feel } from './ledger';
 import { addDays, toISODate } from './metrics';
 import type { ReturnKind } from './advice';
 import { mockDataset } from './mock';
@@ -19,6 +20,9 @@ interface DataState {
   error?: string;
   dismissError: () => void;
   logs: AdviceLog[];
+  /** 早上感觉 1–5，按日期（每日记录）。 */
+  feelings: Record<string, Feel>;
+  setFeel: (date: string, value: Feel | null) => Promise<void>;
   /** 回归期分档，用户回答过才有值。 */
   returnKind?: ReturnKind;
   /** 这次答案对应的是哪一次中断（最后一次训练的日期）。 */
@@ -61,12 +65,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [lastReport, setLastReport] = useState<SyncReport>();
   const [error, setError] = useState<string>();
   const [logs, setLogs] = useState<AdviceLog[]>([]);
+  const [feelings, setFeelings] = useState<Record<string, Feel>>({});
   const [returnKind, setReturnKind] = useState<ReturnKind>();
   const [returnKindFor, setReturnKindFor] = useState<string>();
 
   const reload = useCallback(async () => {
     setData(await loadDataset());
     setLogs(await loadAdviceLogs());
+    setFeelings(await loadFeelings());
   }, []);
 
   const seedMock = useCallback(async () => {
@@ -179,9 +185,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setLogs(await loadAdviceLogs());
   }, []);
 
+  const setFeel = useCallback(async (date: string, value: Feel | null) => {
+    await setFeeling(date, value);
+    setFeelings(await loadFeelings());
+  }, []);
+
   const value = useMemo(
-    () => ({ data, today: toISODate(new Date()), source, loading, lastSync, lastReport, error, dismissError, logs, returnKind, returnKindFor, answerReturnKind, clearReturnKind, injectScenario, sync, connect, disconnect, recordAdvice, actOnAdvice }),
-    [data, source, loading, lastSync, lastReport, error, dismissError, logs, returnKind, returnKindFor, answerReturnKind, clearReturnKind, injectScenario, sync, connect, disconnect, recordAdvice, actOnAdvice],
+    () => ({ data, today: toISODate(new Date()), source, loading, lastSync, lastReport, error, dismissError, logs, feelings, setFeel, returnKind, returnKindFor, answerReturnKind, clearReturnKind, injectScenario, sync, connect, disconnect, recordAdvice, actOnAdvice }),
+    [data, source, loading, lastSync, lastReport, error, dismissError, logs, feelings, setFeel, returnKind, returnKindFor, answerReturnKind, clearReturnKind, injectScenario, sync, connect, disconnect, recordAdvice, actOnAdvice],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

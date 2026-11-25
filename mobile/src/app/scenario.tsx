@@ -76,11 +76,13 @@ export default function ScenarioScreen() {
               justifyContent: 'center',
               alignItems: 'center',
               borderRadius: radius,
-              backgroundColor: colors.accent,
+              // 描边按钮：橙色只给 Agent（2026-11-25 走查）。
+              borderWidth: 1,
+              borderColor: colors.borderStrong,
               opacity: pressed || busy ? 0.6 : 1,
             })}
           >
-            {busy === sc.id ? <ActivityIndicator color={colors.bg} /> : <Text style={{ color: colors.bg, fontWeight: '700', fontSize: font.callout }}>载入并看首页</Text>}
+            {busy === sc.id ? <ActivityIndicator color={colors.text} /> : <Text style={{ color: colors.text, fontWeight: '700', fontSize: font.callout }}>载入并看首页</Text>}
           </Pressable>
         </Card>
       ))}

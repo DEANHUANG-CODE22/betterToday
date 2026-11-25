@@ -1,4 +1,4 @@
-import type { StressSample } from './types';
+import type { StressSample } from './types.ts';
 
 /** 一天按 5 分钟切成 288 格，横轴是当地时间。缺的格留空，不补 0。 */
 export const DAY_SLOTS = 288;

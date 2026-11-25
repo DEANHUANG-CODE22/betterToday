@@ -9,22 +9,36 @@ export type Scroller = ComponentRef<typeof ScrollView>;
 
 const DEFAULT_MOCK = '当前显示的是模拟数据。';
 
-export function Screen({ children, mockNote, scrollRef }: { children: ReactNode; mockNote?: string | null; scrollRef?: RefObject<Scroller | null> }) {
-  const { source, error, dismissError, data, today, lastSync } = useData();
+/** 最新一天早于今天时返回那一天；演练模式的日期是造的，不算。页顶提示和日常健康共用。 */
+export function useStaleDay(): string | null {
+  const { source, data, today } = useData();
+  const latest = [...data.sleep.map((s) => s.date), ...data.daily.map((d) => d.date)].sort().at(-1);
+  return source !== 'scenario' && latest != null && latest < today ? latest : null;
+}
+
+/** refreshable：这一页顶栏右侧有刷新按钮（三个 Tab）。没有的页面不叫人去点右上角。 */
+/**
+ * hero：贴边铺满的页头（运动页的判断色块），在提示行之前。
+ * floating：浮在右下角的东西（「问一句」），不随页面滚动。
+ */
+export function Screen({ children, mockNote, scrollRef, refreshable, hero, floating }: { children: ReactNode; mockNote?: string | null; scrollRef?: RefObject<Scroller | null>; refreshable?: boolean; hero?: ReactNode; floating?: ReactNode }) {
+  const { source, error, dismissError, lastSync } = useData();
+  const staleDay = useStaleDay();
   const insets = useSafeAreaInsets();
   const note = mockNote === null ? null : (mockNote ?? DEFAULT_MOCK);
   // 最新一天早于今天：环下的小字日期不够显眼，在页顶说一次数据停在哪天。
   // 只说停在哪，不猜原因（没同步、没戴表都可能）。演练模式的日期是造的，不提示。
-  const latest = [...data.sleep.map((s) => s.date), ...data.daily.map((d) => d.date)].sort().at(-1);
-  const stale = source !== 'scenario' && latest != null && latest < today
-    ? `数据停在 ${zhMonthDay(new Date(`${latest}T00:00:00`))}${lastSync ? `，上次同步 ${fmtDateTime(lastSync)}` : ''}。点右上角刷新。`
+  const stale = staleDay
+    ? `数据停在 ${zhMonthDay(new Date(`${staleDay}T00:00:00`))}${lastSync ? `，上次同步 ${fmtDateTime(lastSync)}` : ''}。${refreshable ? '点右上角刷新。' : ''}`
     : null;
   return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
     <ScrollView
       ref={scrollRef}
       style={{ backgroundColor: colors.bg }}
       contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: insets.bottom + touch + space.xl * 2 }}
     >
+      {hero ? <View style={{ marginHorizontal: -space.lg, marginTop: -space.lg, marginBottom: space.xs }}>{hero}</View> : null}
       {source === 'scenario' ? (
         <Text style={[styles.banner, { color: colors.fair, fontWeight: '700' }]}>
           演练模式：当前数据是造出来的，不是你的记录。回设置页可退出。
@@ -44,6 +58,8 @@ export function Screen({ children, mockNote, scrollRef }: { children: ReactNode;
       ) : null}
       {children}
     </ScrollView>
+    {floating}
+    </View>
   );
 }
 
@@ -108,13 +124,14 @@ export function Row({ children, gap = space.sm }: { children: ReactNode; gap?: n
   return <View style={{ flexDirection: 'row', gap }}>{children}</View>;
 }
 
+/** 选中用正文色铺底、深色字。橙色留给 Agent（D 版，2026-11-15）。 */
 export function Chip({ label, active, onPress }: { label: string; active?: boolean; onPress?: () => void }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!active }}
-      style={({ pressed }) => [styles.chip, active && { backgroundColor: colors.accent, borderColor: colors.accent }, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [styles.chip, active && { backgroundColor: colors.text, borderColor: colors.text }, pressed && { opacity: 0.7 }]}
     >
       <Text style={{ color: active ? colors.bg : colors.sub, fontSize: font.subhead, fontWeight: '600' }}>{label}</Text>
     </Pressable>

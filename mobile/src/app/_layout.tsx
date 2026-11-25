@@ -20,6 +20,7 @@ export default function RootLayout() {
         <Stack.Screen name="trend/[metric]" options={{ title: '趋势' }} />
         <Stack.Screen name="ability" options={{ title: '运动能力' }} />
         <Stack.Screen name="year" options={{ title: '今年' }} />
+        <Stack.Screen name="ledger" options={{ title: '每日记录' }} />
         <Stack.Screen name="scenario" options={{ title: '演练模式' }} />
         <Stack.Screen name="settings" options={{ title: '设置', presentation: 'modal' }} />
       </Stack>

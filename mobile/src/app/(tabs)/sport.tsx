@@ -1,14 +1,18 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { AdviceCard } from '@/components/AdviceCard';
+import { AdviceBody, AdviceHero, adviceItems } from '@/components/AdviceCard';
+import { AskButton, type EvidenceItem } from '@/components/agent';
 import { SettleCard } from '@/components/SettleCard';
+import { SemiGauge } from '@/components/gauges';
 import { ChevronIcon } from '@/components/icons';
 import { colors, font, space, touch } from '@/components/theme';
 import { Card, Chip, Empty, FadeIn, LoadingBlock, MetricTile, Muted, Row, Screen, SectionTitle } from '@/components/ui';
-import { RETURN_KIND_LABEL, RETURN_KIND_ORDER } from '@/lib/advice';
+import { CONFIDENCE_LABEL, confidenceTip } from '@/lib/agent';
+import { isHardSession, RETURN_KIND_LABEL, RETURN_KIND_ORDER } from '@/lib/advice';
+import { daysBetween, frac, RULE, SCALE } from '@/lib/gauge';
 import { activityTitle, SPORT_LABEL, sportSuffix } from '@/lib/labels';
-import { fmtDuration, fmtKm, fmtPace, zhMonthDay } from '@/lib/metrics';
+import { fmtDuration, fmtKm, fmtPace, toISODate, zhMonthDay } from '@/lib/metrics';
 import { useData } from '@/lib/store';
 import { useTodayAdvice } from '@/lib/useTodayAdvice';
 import { monthGrid, sessionsByDate, weekDates } from '@/lib/volume';
@@ -71,6 +75,48 @@ function DurationAnchor({ seconds }: { seconds: number }) {
   );
 }
 
+function durationText(seconds: number) {
+  const total = Math.max(0, Math.round(seconds / 60));
+  const h = Math.floor(total / 60);
+  return h ? `${h} 时 ${total % 60} 分` : `${total} 分`;
+}
+
+/**
+ * 列表里的一条记录：不成面，用顶上细线分开。回看时先找哪天、练了什么，
+ * 所以名字和日期在第一行，时长退到第二行的第一项。页顶当天那条仍用 ActivityRow。
+ */
+function ActivityListRow({ a, first }: { a: Activity; first: boolean }) {
+  const d = new Date(a.startTime);
+  const quiet = [
+    durationText(a.durationS),
+    a.distanceM > 0 ? `${fmtKm(a.distanceM)} km` : '',
+    moveLabel(a) ?? '',
+    a.avgHr ? `${a.avgHr} bpm` : '',
+    `负荷 ${a.trainingLoad}`,
+  ].filter(Boolean).join(' · ');
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => router.push({ pathname: '/activity/[id]', params: { id: a.id } })}
+      style={({ pressed }) => ({
+        minHeight: touch,
+        paddingVertical: space.md,
+        gap: 2,
+        borderTopWidth: first ? 0 : 1,
+        borderTopColor: colors.border,
+        opacity: pressed ? 0.7 : 1,
+      })}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+        <Text numberOfLines={1} style={{ color: colors.text, fontSize: font.callout, fontWeight: '700', flex: 1 }}>{activityTitle(a.name)}</Text>
+        <Muted>{zhMonthDay(d)}{sportSuffix(a.name, a.sport)}</Muted>
+        <ChevronIcon color={colors.sub} size={16} />
+      </View>
+      <Text style={{ color: colors.sub, fontSize: font.footnote, fontVariant: ['tabular-nums'] }}>{quiet}</Text>
+    </Pressable>
+  );
+}
+
 function ActivityRow({ a }: { a: Activity }) {
   const d = new Date(a.startTime);
   const quiet = [
@@ -97,6 +143,65 @@ function ActivityRow({ a }: { a: Activity }) {
   );
 }
 
+/** 离最近一次强度课几天（和 advice.ts 同一个判定 isHardSession）。没有过强度课给空。 */
+function sinceHard(activities: Activity[], today: string): number | undefined {
+  const last = activities
+    .filter((a) => isHardSession(a))
+    .map((a) => toISODate(new Date(a.startTime)))
+    .filter((d) => d <= today)
+    .sort()
+    .at(-1);
+  return last ? daysBetween(last, today) : undefined;
+}
+
+const fmt1 = (v: number) => (Math.round(v * 10) / 10).toFixed(1);
+
+/**
+ * 训练仪表：建议用到的三个数，外圈刻线就是 advice.ts 自己的门槛（RULE）。
+ * 只有这一页的表画红黄警戒段，因为这一页本来就下判断。
+ */
+function TrainingGauges({ tsb, acwr, sinceHard: days }: { tsb?: number; acwr?: number; sinceHard?: number }) {
+  const [t0, t1] = SCALE.tsb;
+  const [r0, r1] = SCALE.acwr;
+  const [d0, d1] = SCALE.daysSinceHard;
+  return (
+    <Card style={{ paddingHorizontal: space.xs, gap: space.xs }}>
+      <Text style={{ color: colors.sub, fontSize: font.footnote, paddingHorizontal: space.sm }}>训练仪表 · 刻线是规则自己的门槛</Text>
+      <View style={{ flexDirection: 'row' }}>
+        <SemiGauge
+          fraction={tsb != null ? frac(tsb, t0, t1) : undefined}
+          valueText={tsb != null ? String(Math.round(tsb)) : '没有'}
+          zones={[
+            { from: 0, to: frac(RULE.tsbStop, t0, t1), color: colors.poor },
+            { from: frac(RULE.tsbStop, t0, t1), to: frac(RULE.tsbNoIntensity, t0, t1), color: colors.fair },
+          ]}
+          marks={[frac(RULE.tsbStop, t0, t1), frac(RULE.tsbNoIntensity, t0, t1)]}
+          label="状态值"
+          caption={`${RULE.tsbStop} 停\n${RULE.tsbNoIntensity} 不上强度`}
+          accessibilityLabel={`状态值 ${tsb != null ? Math.round(tsb) : '没有'}。低于 ${RULE.tsbStop} 先停，低于 ${RULE.tsbNoIntensity} 不上强度`}
+        />
+        <SemiGauge
+          fraction={acwr != null ? frac(acwr, r0, r1) : undefined}
+          valueText={acwr != null ? fmt1(acwr) : '没有'}
+          zones={[{ from: frac(RULE.acwrStop, r0, r1), to: 1, color: colors.poor }]}
+          marks={[frac(RULE.acwrStop, r0, r1)]}
+          label="负荷比"
+          caption={`短期 / 长期\n${RULE.acwrStop} 停`}
+          accessibilityLabel={`负荷比 ${acwr != null ? fmt1(acwr) : '没有'}，超过 ${RULE.acwrStop} 今天别再跑`}
+        />
+        <SemiGauge
+          fraction={days != null ? frac(days, d0, d1) : undefined}
+          valueText={days != null ? (days > d1 ? `${d1}+ 天` : `${days} 天`) : '没有'}
+          marks={[frac(RULE.minDaysBetweenHard, d0, d1)]}
+          label="离上次强度"
+          caption={`满 ${RULE.minDaysBetweenHard} 天\n才可再上`}
+          accessibilityLabel={days != null ? `离上次强度 ${days} 天，满 ${RULE.minDaysBetweenHard} 天才可能再上` : '还没有强度课记录'}
+        />
+      </View>
+    </Card>
+  );
+}
+
 export default function SportTab() {
   const { data, today, loading } = useData();
   const {
@@ -114,10 +219,28 @@ export default function SportTab() {
   const shown = new Set(todayActs.map((a) => a.id));
   const list = data.activities.filter((a) => !shown.has(a.id) && (filter === 'all' || a.sport === filter)).slice(0, 60);
 
-  if (loading && !data.activities.length && !data.ability.length) return <Screen><LoadingBlock /></Screen>;
+  const tip = confidenceTip(data.sleep, today, advice.confidence);
+  const askItems: EvidenceItem[] = showSettlement
+    ? [
+      { key: 'settle', label: '今天的结算', value: settlement ? '已出' : '没有' },
+      { key: 'week', label: '本周', value: `${(weekTotal / 1000).toFixed(1)} 公里` },
+      { key: 'month', label: month.label, value: `${month.total} 次` },
+    ]
+    : [
+      { key: 'dose', label: '今天', value: `${advice.duration}，${advice.zones}` },
+      { key: 'conf', label: '把握', value: CONFIDENCE_LABEL[advice.confidence], note: tip },
+      ...adviceItems(advice, yesterday),
+      { key: 'week', label: '本周', value: `${(weekTotal / 1000).toFixed(1)} 公里` },
+    ];
+
+  if (loading && !data.activities.length && !data.ability.length) return <Screen refreshable><LoadingBlock /></Screen>;
 
   return (
-    <Screen>
+    <Screen
+      refreshable
+      hero={showSettlement ? undefined : <AdviceHero advice={advice} today={today} />}
+      floating={<AskButton page="运动" items={askItems} />}
+    >
       {todayActs.map((a) => <ActivityRow key={a.id} a={a} />)}
       {showSettlement ? (
         <FadeIn watch="settle">
@@ -160,9 +283,15 @@ export default function SportTab() {
           </Pressable>
         </Card>
       )}
+      <TrainingGauges
+        tsb={advice.inputs.tsb}
+        acwr={advice.inputs.acwr}
+        sinceHard={sinceHard(data.activities, today)}
+      />
       {showSettlement ? null : (
-        <AdviceCard
+        <AdviceBody
           advice={advice}
+          tip={tip}
           yesterday={yesterday}
           hitRate={hitRate}
           action={todayLog?.userAction}
@@ -207,6 +336,12 @@ export default function SportTab() {
             accessibilityLabel={`${month.label} ${month.total} 次，今天 ${Number(today.slice(8, 10))} 日`}
             style={{ gap: 3 }}
           >
+            {/* 星期表头：没有它读不出哪格是哪天，月初落在周日时右上角那一格像渲染出错。 */}
+            <View style={{ flexDirection: 'row', gap: 3 }}>
+              {WEEKDAY.map((label) => (
+                <Text key={label} style={{ flex: 1, textAlign: 'center', color: colors.sub, fontSize: font.footnote }}>{label}</Text>
+              ))}
+            </View>
             {Array.from({ length: month.cells.length / 7 }, (_, row) => (
               <View key={row} style={{ flexDirection: 'row', gap: 3 }}>
                 {month.cells.slice(row * 7, row * 7 + 7).map((cell, i) => (
@@ -230,6 +365,9 @@ export default function SportTab() {
         </Pressable>
       </Row>
 
+      <Pressable accessibilityRole="link" onPress={() => router.push('/ledger')} style={({ pressed }) => ({ minHeight: touch, justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
+        <Muted>每日记录：建议、照做、早上感觉、次日 HRV ›</Muted>
+      </Pressable>
       <SectionTitle>运动记录</SectionTitle>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space.sm }}>
         <Chip label="全部" active={filter === 'all'} onPress={() => setFilter('all')} />
@@ -237,7 +375,7 @@ export default function SportTab() {
           <Chip key={t} label={SPORT_LABEL[t]} active={filter === t} onPress={() => setFilter(t)} />
         ))}
       </ScrollView>
-      {list.length ? list.map((a) => <ActivityRow key={a.id} a={a} />) : <Empty text="暂无运动记录。" />}
+      {list.length ? <View>{list.map((a, i) => <ActivityListRow key={a.id} a={a} first={i === 0} />)}</View> : <Empty text="暂无运动记录。" />}
 
       <SectionTitle>运动能力</SectionTitle>
       {latest ? (

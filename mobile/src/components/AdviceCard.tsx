@@ -1,47 +1,37 @@
 import { useState } from 'react';
 import { Text, View } from 'react-native';
+import { splitReason } from '@/lib/agent';
 import { spaceZhDates, type Advice, type AdviceAction } from '@/lib/advice';
+import { AgentMark, ConfidenceRow, Evidence, type EvidenceItem } from './agent';
 import { colors, font, space } from './theme';
-import { Card, Chip, Muted } from './ui';
+import { Chip, Muted } from './ui';
 
-const TONE: Record<Advice['kind'], string> = {
-  unknown: colors.sub,
-  rest: colors.poor,
-  recovery: colors.fair,
-  aerobic: colors.blue,
-  intensity: colors.good,
-};
-
-const CONFIDENCE = { high: '把握高', medium: '把握中', low: '把握低' };
+const md = (d: string) => `${Number(d.slice(5, 7))} 月 ${Number(d.slice(8, 10))} 日`;
 
 /**
- * 只涂这个判断自己的那个词。按 kind 找词，不按标题里先出现哪个词：
- * 「今天别上强度」是休息，「今天不追强度」是有氧，被否定的「强度」不能上色。
+ * 运动页最上面的判断：贴边铺满，底色按 kind（有氧蓝、强度绿、休息红、回归期黄褐）。
+ * 色块已经说了是哪一档，标题整句白字，不再单独涂一个词。
  */
-const KIND_WORD: Partial<Record<Advice['kind'], string>> = {
-  rest: '休息',
-  aerobic: '有氧',
-  intensity: '强度',
-};
-
-function Verdict({ title: raw, kind, tone }: { title: string; kind: Advice['kind']; tone: string }) {
-  const title = spaceZhDates(raw);
-  const word = KIND_WORD[kind];
-  const at = word ? title.indexOf(word) : -1;
-  if (!word || at < 0) {
-    return <Text style={{ flex: 1, color: colors.text, fontSize: font.metric, fontWeight: '800', lineHeight: 30 }}>{title}</Text>;
-  }
+export function AdviceHero({ advice, today }: { advice: Advice; today: string }) {
   return (
-    <Text style={{ flex: 1, color: colors.text, fontSize: font.metric, fontWeight: '800', lineHeight: 30 }}>
-      {title.slice(0, at)}
-      <Text style={{ color: tone }}>{word}</Text>
-      {title.slice(at + word.length)}
-    </Text>
+    <View style={{ backgroundColor: colors.kindField[advice.kind], paddingHorizontal: space.lg + 4, paddingTop: space.lg, paddingBottom: space.xl, gap: space.sm }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+        <AgentMark track="rgba(255,255,255,0.3)" dot="#FFFFFF" gap={colors.kindField[advice.kind]} />
+        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: font.subhead, fontWeight: '600' }}>今天 · {md(today)}</Text>
+      </View>
+      <Text style={{ color: '#FFFFFF', fontSize: font.figure, lineHeight: 44, fontWeight: '800' }}>{spaceZhDates(advice.title)}</Text>
+      <Text style={{ color: '#FFFFFF', fontSize: font.title, lineHeight: 24 }}>
+        {advice.duration}，{advice.zones}。
+      </Text>
+      {advice.narrative ? <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: font.body, lineHeight: 21 }}>{spaceZhDates(advice.narrative)}</Text> : null}
+    </View>
   );
 }
 
-export function AdviceCard({
+/** 判断下面：把握、它看到的数（依据拆成标签）、你怎么回（三个按钮）。 */
+export function AdviceBody({
   advice,
+  tip,
   yesterday,
   hitRate,
   action,
@@ -49,6 +39,7 @@ export function AdviceCard({
   onAction,
 }: {
   advice: Advice;
+  tip?: string;
   yesterday?: string;
   hitRate?: string;
   action?: AdviceAction;
@@ -56,24 +47,10 @@ export function AdviceCard({
   onAction?: (action: AdviceAction, note?: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const tone = TONE[advice.kind];
   return (
-    <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: space.md }}>
-        <Verdict title={advice.title} kind={advice.kind} tone={tone} />
-        <Text style={{ color: colors.sub, fontSize: font.subhead, lineHeight: 30 }}>{CONFIDENCE[advice.confidence]}</Text>
-      </View>
-      <Muted>时长 {advice.duration} · 强度 {advice.zones}</Muted>
-      <Text style={{ color: colors.text, fontSize: font.body, lineHeight: 22 }}>{advice.narrative}</Text>
-      <View style={{ gap: space.xs }}>
-        {advice.reasons.slice(0, 4).map((r) => (
-          <Muted key={r}>· {r}</Muted>
-        ))}
-        {advice.conflicts?.map((r) => (
-          <Muted key={r}>· {r}</Muted>
-        ))}
-        {yesterday ? <Muted>· {yesterday}</Muted> : null}
-      </View>
+    <View style={{ gap: space.lg }}>
+      <ConfidenceRow level={advice.confidence} tip={tip} />
+      <Evidence items={adviceItems(advice, yesterday)} />
       {hitRate ? <Muted>{hitRate}</Muted> : null}
       {onAction && advice.kind !== 'unknown' && (
         <View style={{ gap: space.sm }}>
@@ -91,6 +68,15 @@ export function AdviceCard({
           )}
         </View>
       )}
-    </Card>
+    </View>
   );
+}
+
+/** 依据「人话 —— 参照」拆成标签：人话在前，参照是灰字。最多四条，冲突和昨天那句跟在后面。 */
+export function adviceItems(advice: Advice, yesterday?: string): EvidenceItem[] {
+  const lines = [...advice.reasons.slice(0, 4), ...(advice.conflicts ?? []), ...(yesterday ? [yesterday] : [])];
+  return lines.map((line, i) => {
+    const { head, tail } = splitReason(spaceZhDates(line));
+    return { key: `r${i}`, label: head, note: tail };
+  });
 }

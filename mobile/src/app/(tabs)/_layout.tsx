@@ -71,7 +71,8 @@ export default function TabLayout() {
         headerShadowVisible: false,
         headerRight: () => <HeaderActions />,
         tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
-        tabBarActiveTintColor: colors.accent,
+        // 当前 Tab 用正文色；橙色留给 Agent 开口的地方。
+        tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.sub,
         sceneStyle: { backgroundColor: colors.bg },
       }}

@@ -29,6 +29,8 @@ export function getDb() {
       CREATE TABLE IF NOT EXISTS advice_log (date TEXT PRIMARY KEY, json TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS activity_start ON activity (start_time);
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      -- 早上感觉 1–5（每日记录）。单独一张表：advice_log 会写占位行，结算也读它，不混进去。
+      CREATE TABLE IF NOT EXISTS feel (date TEXT PRIMARY KEY, value INTEGER NOT NULL, at TEXT NOT NULL);
     `);
     return db;
   })().catch((e) => {
@@ -105,16 +107,32 @@ export async function setAdviceAction(date: string, userAction: AdviceLog['userA
   await db.runAsync('INSERT OR REPLACE INTO advice_log VALUES (?, ?)', date, JSON.stringify({ ...prev, userAction, note: note ?? prev.note }));
 }
 
+/** 早上感觉，按日期。只认 1–5，别的值丢掉。 */
+export async function loadFeelings(): Promise<Record<string, 1 | 2 | 3 | 4 | 5>> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ date: string; value: number }>('SELECT date, value FROM feel');
+  const out: Record<string, 1 | 2 | 3 | 4 | 5> = {};
+  for (const row of rows) if (row.value >= 1 && row.value <= 5) out[row.date] = row.value as 1 | 2 | 3 | 4 | 5;
+  return out;
+}
+
+/** 记一天的早上感觉；value 为空就删掉那天的记录。 */
+export async function setFeeling(date: string, value: 1 | 2 | 3 | 4 | 5 | null) {
+  const db = await getDb();
+  if (value == null) await db.runAsync('DELETE FROM feel WHERE date = ?', date);
+  else await db.runAsync('INSERT OR REPLACE INTO feel VALUES (?, ?, ?)', date, value, new Date().toISOString());
+}
+
 export async function clearData() {
   const db = await getDb();
   await db.execAsync('DELETE FROM sleep; DELETE FROM daily; DELETE FROM ability; DELETE FROM activity; DELETE FROM load_day;');
 }
 
-/** 演练模式用：数据表和 advice_log 一起清，避免昨天的动作串到今天。 */
+/** 演练模式用：数据表、advice_log 和早上感觉一起清，避免真实记录串到造出来的日子里。 */
 export async function clearAll() {
   const db = await getDb();
   await db.execAsync(
-    'DELETE FROM sleep; DELETE FROM daily; DELETE FROM ability; DELETE FROM activity; DELETE FROM load_day; DELETE FROM advice_log;',
+    'DELETE FROM sleep; DELETE FROM daily; DELETE FROM ability; DELETE FROM activity; DELETE FROM load_day; DELETE FROM advice_log; DELETE FROM feel;',
   );
 }
 
