@@ -4,13 +4,15 @@ import { Pressable, Text, View } from 'react-native';
 import { AgentVoice, AskButton, type EvidenceItem } from '@/components/agent';
 import { LineChart } from '@/components/charts';
 import { MeterBar, StressDial, StressLegend } from '@/components/gauges';
+import { InfoButton } from '@/components/knowledge';
 import { ChevronIcon } from '@/components/icons';
 import { colors, font, space, touch } from '@/components/theme';
 import { Card, LoadingBlock, Muted, Screen, useStaleDay } from '@/components/ui';
 import { filledSlots, heartSlots, slotClock } from '@/lib/daySeries';
 import { dailyVoice } from '@/lib/agent';
 import { centeredScale, frac, hourlyStress } from '@/lib/gauge';
-import { addDays, baseline } from '@/lib/metrics';
+import { PAGE_TOPICS, type Facts } from '@/lib/knowledge';
+import { addDays, baseline, detectAnomalies } from '@/lib/metrics';
 import { useData } from '@/lib/store';
 import type { DailyHealth } from '@/lib/types';
 
@@ -35,7 +37,8 @@ const hasDailyData = (row: DailyHealth) =>
   ROWS.some((field) => typeof row[field.key] === 'number') || !!row.stressSeries?.length;
 
 export default function DailyHealthScreen() {
-  const { data, today, loading } = useData();
+  // 日常健康按日历日：步数、压力从零点开始算，不跟「醒来才翻天」走。
+  const { data, calendarToday: today, loading } = useData();
   const staleDay = useStaleDay();
   // 默认打开最近有数据的那天（不晚于今天）。早上今天往往还没数，打开只剩一句「没有」。
   // 用户翻过之后按用户翻到的那天；数据刷新不把人拉走。
@@ -61,10 +64,18 @@ export default function DailyHealthScreen() {
   const items = dailyItems(row, date, hr);
   const voice = dailyVoice(row, isToday ? '今天' : '这天', { avg28: hr.avg28 ?? undefined, trend: hr.trend ?? undefined });
 
+  const hoursSeries = row?.stressSeries?.length ? hourlyStress(row.stressSeries, -new Date().getTimezoneOffset()) : undefined;
+  const facts: Facts = {
+    today,
+    restingHr: typeof row?.restingHr === 'number' ? { value: row.restingHr, avg28: hr.avg28 ?? undefined } : undefined,
+    stress: { date, avg: typeof row?.stress === 'number' ? row.stress : undefined, missingHours: hoursSeries ? hoursSeries.filter((v) => v == null).length : undefined },
+    deviations: detectAnomalies(data.daily, data.sleep, date).map((a) => a.message),
+  };
+
   if (loading && !data.daily.length) return <Screen refreshable><LoadingBlock /></Screen>;
 
   return (
-    <Screen refreshable floating={<AskButton page="日常健康" items={items} />}>
+    <Screen refreshable floating={<AskButton page="日常健康" items={items} topics={PAGE_TOPICS.daily} facts={facts} />}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Pressable
           accessibilityRole="button"
@@ -109,8 +120,9 @@ export default function DailyHealthScreen() {
           <Muted>{latest === today ? '回到今天' : '回到最近一天'}</Muted>
         </Pressable>
       )}
-      <AgentVoice by={`看了你 ${fmtDate(date)}（${weekday(date)}）的数据`} title={voice.title} body={voice.body || undefined} />
-      <DailyGauges row={row} date={date} hr={hr} steps={baseline(data.daily.map((d) => ({ date: d.date, value: d.steps })), date, 0.1)} items={items} />
+      {/* 日期已经在上面的翻页头里，这里不再重复（0.1.45）。 */}
+      <AgentVoice by={date === today ? '看了你今天的数据' : '看了你这一天的数据'} title={voice.title} body={voice.body || undefined} />
+      <DailyGauges row={row} date={date} hr={hr} steps={baseline(data.daily.map((d) => ({ date: d.date, value: d.steps })), date, 0.1)} items={items} facts={facts} />
       <DailyFields row={row} />
     </Screen>
   );
@@ -131,7 +143,7 @@ function dailyItems(row: DailyHealth | undefined, date: string, hr: ReturnType<t
     let tone: string | undefined;
     if (field.key === 'stress') note = '日均 · 0–100';
     if (field.key === 'restingHr' && hr.avg28 != null) {
-      note = `基线 ${Math.round(hr.avg28)}`;
+      note = `平时 ${Math.round(hr.avg28)}`;
       if (hr.trend === 'up') tone = colors.fair;
     }
     if (!field.metric) note = '只有一次';
@@ -171,7 +183,7 @@ const GAUGED = new Set<string>(['stress', 'restingHr', 'steps']);
  * 日常健康的仪表：24 小时压力表盘（每小时均值），静息心率和步数两条刻度条。
  * 刻度只来自你自己：静息心率的带是 28 日基线 ±5%（和规则判断偏离同一口径），步数的线是 28 日平均。不设步数目标。
  */
-function DailyGauges({ row, date, hr, steps, items }: { row?: DailyHealth; date: string; hr: ReturnType<typeof baseline>; steps: ReturnType<typeof baseline>; items: EvidenceItem[] }) {
+function DailyGauges({ row, date, hr, steps, items, facts }: { row?: DailyHealth; date: string; hr: ReturnType<typeof baseline>; steps: ReturnType<typeof baseline>; items: EvidenceItem[]; facts: Facts }) {
   const offsetMin = -new Date().getTimezoneOffset();
   const hours = row?.stressSeries?.length ? hourlyStress(row.stressSeries, offsetMin) : undefined;
   const showDial = !!hours && hours.filter((v) => v != null).length >= 2;
@@ -180,6 +192,8 @@ function DailyGauges({ row, date, hr, steps, items }: { row?: DailyHealth; date:
   const open = (metric: string) => () => router.push({ pathname: '/trend/[metric]', params: { metric, date } });
   // 没画成表的项（活动消耗、运动分钟、血氧……，以及缺了的三项）排成同一张卡里的行，不再单列「另外看到的」。
   const rest = items.filter((item) => !GAUGED.has(item.key) || item.missing || (item.key === 'stress' && !showDial));
+  const present = rest.filter((item) => !item.missing);
+  const missing = rest.filter((item) => item.missing);
   if (!showDial && rhr == null && stepsVal == null && !rest.length) return null;
   const rhrScale = hr.avg28 != null ? centeredScale(hr.avg28, 0.2, rhr) : undefined;
   const stepsMax = Math.max(1000, Math.ceil(Math.max((steps.avg28 ?? 0) * 1.75, (stepsVal ?? 0) * 1.1) / 1000) * 1000);
@@ -189,7 +203,10 @@ function DailyGauges({ row, date, hr, steps, items }: { row?: DailyHealth; date:
         <Card onPress={open('stress')} accessibilityLabel={`压力 24 小时表盘，日均 ${typeof row?.stress === 'number' ? Math.round(row.stress) : '没有'}，查看趋势`} style={{ alignItems: 'center' }}>
           <View style={{ alignSelf: 'stretch', flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={{ color: colors.sub, fontSize: font.subhead }}>压力 · 24 小时 ›</Text>
-            <Text style={{ color: colors.sub, fontSize: font.footnote }}>每小时一根 · 0–100</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+              <Text style={{ color: colors.sub, fontSize: font.footnote }}>每小时一根 · 0–100</Text>
+              <InfoButton ids={['stress']} facts={facts} title="压力是什么" />
+            </View>
           </View>
           <StressDial
             hours={hours!}
@@ -207,11 +224,11 @@ function DailyGauges({ row, date, hr, steps, items }: { row?: DailyHealth; date:
       {rhr != null || stepsVal != null || rest.length ? (
         <Card style={{ paddingVertical: space.xs, gap: 0 }}>
           {rhr != null ? (
-            <Pressable accessibilityRole="button" accessibilityLabel={`静息心率 ${Math.round(rhr)}${hr.avg28 != null ? `，28 日基线 ${Math.round(hr.avg28)}` : ''}，查看趋势`} onPress={open('restingHr')} style={({ pressed }) => ({ paddingVertical: space.md, gap: space.sm, opacity: pressed ? 0.7 : 1 })}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`静息心率 ${Math.round(rhr)}${hr.avg28 != null ? `，平时 ${Math.round(hr.avg28)}` : ''}，查看趋势`} onPress={open('restingHr')} style={({ pressed }) => ({ paddingVertical: space.md, gap: space.sm, opacity: pressed ? 0.7 : 1 })}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <Text style={{ color: colors.sub, fontSize: font.body }}>静息心率 ›</Text>
                 <Text style={{ color: hr.trend === 'up' ? colors.fair : colors.text, fontSize: font.lead, fontWeight: '700', fontVariant: ['tabular-nums'] }}>
-                  {Math.round(rhr)}<Text style={{ color: colors.sub, fontSize: font.footnote, fontWeight: '500' }}> bpm{hr.avg28 != null ? ` · 基线 ${Math.round(hr.avg28)}` : ''}</Text>
+                  {Math.round(rhr)}<Text style={{ color: colors.sub, fontSize: font.footnote, fontWeight: '500' }}> bpm{hr.avg28 != null ? ` · 平时 ${Math.round(hr.avg28)}` : ''}</Text>
                 </Text>
               </View>
               {rhrScale && hr.avg28 != null ? (
@@ -220,13 +237,13 @@ function DailyGauges({ row, date, hr, steps, items }: { row?: DailyHealth; date:
                   band={[frac(hr.avg28 * 0.95, ...rhrScale), frac(hr.avg28 * 1.05, ...rhrScale)]}
                   tick={frac(hr.avg28, ...rhrScale)}
                   ends={[String(rhrScale[0]), String(rhrScale[1])]}
-                  note="带 = 基线 ±5%"
+                  note="带 = 平时 ±5%"
                 />
               ) : null}
             </Pressable>
           ) : null}
           {stepsVal != null ? (
-            <Pressable accessibilityRole="button" accessibilityLabel={`步数 ${Math.round(stepsVal)}${steps.avg28 != null ? `，28 日平均 ${Math.round(steps.avg28)}` : ''}，查看趋势`} onPress={open('steps')} style={({ pressed }) => ({ paddingVertical: space.md, gap: space.sm, borderTopWidth: rhr != null ? 1 : 0, borderTopColor: colors.border, opacity: pressed ? 0.7 : 1 })}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`步数 ${Math.round(stepsVal)}${steps.avg28 != null ? `，平时 ${Math.round(steps.avg28)}` : ''}，查看趋势`} onPress={open('steps')} style={({ pressed }) => ({ paddingVertical: space.md, gap: space.sm, borderTopWidth: rhr != null ? 1 : 0, borderTopColor: colors.border, opacity: pressed ? 0.7 : 1 })}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <Text style={{ color: colors.sub, fontSize: font.body }}>步数 ›</Text>
                 <Text style={{ color: colors.text, fontSize: font.lead, fontWeight: '700', fontVariant: ['tabular-nums'] }}>
@@ -238,11 +255,18 @@ function DailyGauges({ row, date, hr, steps, items }: { row?: DailyHealth; date:
                 value={frac(stepsVal, 0, stepsMax)}
                 tick={steps.avg28 != null ? frac(steps.avg28, 0, stepsMax) : undefined}
                 ends={['0', stepsMax.toLocaleString()]}
-                note={steps.avg28 != null ? '线 = 28 日平均' : undefined}
+                note={steps.avg28 != null ? '线 = 平时（前 28 天平均）' : undefined}
               />
             </Pressable>
           ) : null}
-          {rest.map((item, i) => <MetricRow key={item.key} item={item} top={i > 0 || rhr != null || stepsVal != null} />)}
+          {present.map((item, i) => <MetricRow key={item.key} item={item} top={i > 0 || rhr != null || stepsVal != null} />)}
+          {/* 没数的项收成一行（2026-11-27，学 betterNow），不一项一行写「没有」。 */}
+          {missing.length ? (
+            <Text style={{ color: colors.sub, fontSize: font.body, paddingVertical: space.sm, borderTopWidth: present.length || rhr != null || stepsVal != null ? 1 : 0, borderTopColor: colors.border }}>
+              还没有：{missing.map((m) => m.label).join('、')}
+            </Text>
+          ) : null}
+          <InfoButton ids={['restingHr', 'baseline', 'deviation']} facts={facts} title="这几项是什么" label="这几项是什么" />
         </Card>
       ) : null}
     </>

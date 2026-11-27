@@ -46,7 +46,7 @@ function b64url(bytes: Uint8Array): string {
 
 async function serverMeta(region: Region): Promise<ServerMeta> {
   const res = await fetch(`${HOSTS[region]}/.well-known/oauth-authorization-server`);
-  if (!res.ok) throw new Error(`读取 COROS 授权服务器元数据失败：${res.status}`);
+  if (!res.ok) throw new Error(`连不上高驰，稍后再试（错误 ${res.status}）`);
   return res.json();
 }
 
@@ -91,7 +91,7 @@ async function registerClient(meta: ServerMeta, redirectUri: string): Promise<st
     }),
   });
   const json = (await res.json()) as { client_id?: string; error_description?: string };
-  if (!json.client_id) throw new Error(`客户端注册失败：${json.error_description ?? '未知错误'}`);
+  if (!json.client_id) throw new Error(`连不上高驰，稍后再试（${json.error_description ?? '注册失败'}）`);
   return json.client_id;
 }
 

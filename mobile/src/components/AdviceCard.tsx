@@ -6,18 +6,21 @@ import { AgentMark, ConfidenceRow, Evidence, type EvidenceItem } from './agent';
 import { colors, font, space } from './theme';
 import { Chip, Muted } from './ui';
 
+/** 休息日点「还是跑了」时记成「改成了跑步」，结算写「原本建议……，你改成了跑步」。 */
+const RAN_ANYWAY = '跑步';
+
 const md = (d: string) => `${Number(d.slice(5, 7))} 月 ${Number(d.slice(8, 10))} 日`;
 
 /**
  * 运动页最上面的判断：贴边铺满，底色按 kind（有氧蓝、强度绿、休息红、回归期黄褐）。
  * 色块已经说了是哪一档，标题整句白字，不再单独涂一个词。
  */
-export function AdviceHero({ advice, today }: { advice: Advice; today: string }) {
+export function AdviceHero({ advice, today, beforeMorning }: { advice: Advice; today: string; beforeMorning?: boolean }) {
   return (
     <View style={{ backgroundColor: colors.kindField[advice.kind], paddingHorizontal: space.lg + 4, paddingTop: space.lg, paddingBottom: space.xl, gap: space.sm }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
         <AgentMark track="rgba(255,255,255,0.3)" dot="#FFFFFF" gap={colors.kindField[advice.kind]} />
-        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: font.subhead, fontWeight: '600' }}>今天 · {md(today)}</Text>
+        <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: font.subhead, fontWeight: '600' }}>{beforeMorning ? `还没到早上 · 这是 ${md(today)}的安排` : `今天 · ${md(today)}`}</Text>
       </View>
       <Text style={{ color: '#FFFFFF', fontSize: font.figure, lineHeight: 44, fontWeight: '800' }}>{spaceZhDates(advice.title)}</Text>
       <Text style={{ color: '#FFFFFF', fontSize: font.title, lineHeight: 24 }}>
@@ -52,7 +55,14 @@ export function AdviceBody({
       <ConfidenceRow level={advice.confidence} tip={tip} />
       <Evidence items={adviceItems(advice, yesterday)} />
       {hitRate ? <Muted>{hitRate}</Muted> : null}
-      {onAction && advice.kind !== 'unknown' && (
+      {/* 按钮跟着结论走（2026-11-27，学 betterNow）：休息日只有「休息了 / 还是跑了」。 */}
+      {onAction && advice.kind === 'rest' && (
+        <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
+          <Chip label="休息了" active={action === 'followed'} onPress={() => onAction('followed')} />
+          <Chip label="还是跑了" active={action === 'changed' && actionNote === RAN_ANYWAY} onPress={() => onAction('changed', RAN_ANYWAY)} />
+        </View>
+      )}
+      {onAction && advice.kind !== 'unknown' && advice.kind !== 'rest' && (
         <View style={{ gap: space.sm }}>
           <View style={{ flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' }}>
             <Chip label="做完了" active={action === 'followed'} onPress={() => onAction('followed')} />

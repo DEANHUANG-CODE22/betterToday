@@ -21,13 +21,13 @@ export default function AbilityScreen() {
 
   return (
     <Screen>
-      <SectionTitle>体能 / 疲劳 / 状态</SectionTitle>
+      <SectionTitle>体能 / 疲劳 / 状态值</SectionTitle>
       <Row>
-        <MetricTile plain label="体能 CTL" value={last ? last.ctl.toFixed(0) : '--'} />
-        <MetricTile plain label="疲劳 ATL" value={last ? last.atl.toFixed(0) : '--'} />
+        <MetricTile plain label="体能" value={last ? last.ctl.toFixed(0) : '--'} />
+        <MetricTile plain label="疲劳" value={last ? last.atl.toFixed(0) : '--'} />
       </Row>
       <Row>
-        <MetricTile plain label="状态 TSB" value={last ? last.tsb.toFixed(0) : '--'} />
+        <MetricTile plain label="状态值" value={last ? last.tsb.toFixed(0) : '--'} />
         <MetricTile plain label="ACWR" value={ratio?.toFixed(2) ?? '--'} />
       </Row>
       <Card>
@@ -35,15 +35,15 @@ export default function AbilityScreen() {
           accessibilityLabel="体能和疲劳"
           labels={labels}
           series={[
-            { values: fit.map((f) => f.ctl), color: colors.blue, label: '体能 CTL' },
-            { values: fit.map((f) => f.atl), color: colors.poor, label: '疲劳 ATL' },
+            { values: fit.map((f) => f.ctl), color: colors.blue, label: '体能' },
+            { values: fit.map((f) => f.atl), color: colors.poor, label: '疲劳' },
           ]}
           height={160}
         />
         <LineChart
-          accessibilityLabel="状态 TSB"
+          accessibilityLabel="状态值"
           labels={labels}
-          series={[{ values: fit.map((f) => f.tsb), color: colors.good, label: '状态 TSB', dashed: true }]}
+          series={[{ values: fit.map((f) => f.tsb), color: colors.good, label: '状态值', dashed: true }]}
           height={100}
         />
         {fit.some((point) => point.load > 0) && (
@@ -53,7 +53,7 @@ export default function AbilityScreen() {
           </>
         )}
         {last && ctlBase?.avg28 != null ? (
-          <Muted>{Number(last.date.slice(5, 7))}月{Number(last.date.slice(8))}日的体能 {last.ctl.toFixed(0)}，你的 28 日基线是 {ctlBase.avg28.toFixed(0)}。</Muted>
+          <Muted>{Number(last.date.slice(5, 7))} 月 {Number(last.date.slice(8))} 日的体能 {last.ctl.toFixed(0)}，你平时是 {ctlBase.avg28.toFixed(0)}。</Muted>
         ) : null}
       </Card>
 
@@ -61,7 +61,7 @@ export default function AbilityScreen() {
         <>
           <SectionTitle>能力指标</SectionTitle>
           <Row>
-            <MetricTile plain label="最大摄氧量" value={latest.vo2max?.toFixed(1) ?? '--'} footer={<Muted>{delta(latest.vo2max, first?.vo2max)} 较 {first?.date.slice(5)}</Muted>} />
+            <MetricTile plain label="最大摄氧量" value={latest.vo2max?.toFixed(1) ?? '--'} footer={<Muted>{delta(latest.vo2max, first?.vo2max)}{first ? ` 较 ${Number(first.date.slice(5, 7))} 月 ${Number(first.date.slice(8, 10))} 日` : ''}</Muted>} />
             <MetricTile plain label="跑力" value={latest.runningFitness != null ? String(latest.runningFitness) : '--'} />
             <MetricTile plain label="马拉松水平" value={latest.marathonLevel != null ? `${latest.marathonLevel}%` : '--'} footer={<Muted>{delta(latest.marathonLevel, first?.marathonLevel, 0)}</Muted>} />
           </Row>
@@ -111,7 +111,7 @@ export default function AbilityScreen() {
           )}
         </>
       ) : (
-        <Empty text="暂无运动能力数据。" />
+        <Empty text="还没有运动能力数据。" />
       )}
     </Screen>
   );

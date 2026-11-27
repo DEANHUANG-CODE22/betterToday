@@ -3,6 +3,7 @@ import { signIn, signOut, loadSession } from './coros/oauth';
 import { syncFromCoros, type SyncReport } from './coros/sync';
 import { clearAll, clearData, getMeta, loadAdviceLogs, loadDataset, loadFeelings, saveAdviceLog, setAdviceAction, setFeeling, setMeta, upsertDataset, type AdviceLog } from './db';
 import type { Feel } from './ledger';
+import { dayInfo } from './dayBoundary';
 import { addDays, toISODate } from './metrics';
 import type { ReturnKind } from './advice';
 import { mockDataset } from './mock';
@@ -12,7 +13,12 @@ type Source = 'mock' | 'coros' | 'scenario';
 
 interface DataState {
   data: Dataset;
+  /** 按醒来算的「今天」（lib/dayBoundary.ts）：半夜到起床前仍是昨天。 */
   today: string;
+  /** 日历上的今天：日常健康用。 */
+  calendarToday: string;
+  /** 还没到早上。 */
+  beforeMorning: boolean;
   source: Source;
   loading: boolean;
   lastSync?: string;
@@ -191,7 +197,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ data, today: toISODate(new Date()), source, loading, lastSync, lastReport, error, dismissError, logs, feelings, setFeel, returnKind, returnKindFor, answerReturnKind, clearReturnKind, injectScenario, sync, connect, disconnect, recordAdvice, actOnAdvice }),
+    () => ({ data, ...dayInfo(new Date(), data.sleep), source, loading, lastSync, lastReport, error, dismissError, logs, feelings, setFeel, returnKind, returnKindFor, answerReturnKind, clearReturnKind, injectScenario, sync, connect, disconnect, recordAdvice, actOnAdvice }),
     [data, source, loading, lastSync, lastReport, error, dismissError, logs, feelings, setFeel, returnKind, returnKindFor, answerReturnKind, clearReturnKind, injectScenario, sync, connect, disconnect, recordAdvice, actOnAdvice],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

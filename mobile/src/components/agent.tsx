@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import { CONFIDENCE_BARS, CONFIDENCE_LABEL } from '@/lib/agent';
 import type { Confidence } from '@/lib/advice';
+import type { Facts, TopicId } from '@/lib/knowledge';
+import { Sheet, TopicList } from './knowledge';
+import { BAR_GAP, BAR_H, glassStyle, useTabChrome } from './tabChrome';
 import { colors, font, space, touch } from './theme';
 
 /**
@@ -53,8 +56,8 @@ export interface EvidenceItem {
   onPress?: () => void;
 }
 
-/** 「它看到的数」：一排小标签，能点的进趋势或详情。 */
-export function Evidence({ items, title = '它看到的数' }: { items: EvidenceItem[]; title?: string }) {
+/** 「我看到的数」：一排小标签，能点的进趋势或详情。 */
+export function Evidence({ items, title = '我看到的数' }: { items: EvidenceItem[]; title?: string }) {
   if (!items.length) return null;
   return (
     <View style={{ gap: space.sm }}>
@@ -123,48 +126,42 @@ export function ConfidenceRow({ level, tip, onDark }: { level: Confidence; tip?:
 
 /**
  * 「问一句」：三页同一颗，浮在右下角，不进底栏（PRD §17）。
- * 这一版只打开面板列出它看到的数，由手机本地拼，不请求模型；问答下一版接上。
+ * 打开是面板：先列这一页它看到的数（手机本地拼），再列「这些数是什么」的知识条目（2026-11-27）。
+ * 不请求模型；问答以后接上，也只能引用这两部分。
  */
-export function AskButton({ page, items }: { page: string; items: EvidenceItem[] }) {
+export function AskButton({ page, items, topics, facts }: { page: string; items: EvidenceItem[]; topics?: readonly TopicId[]; facts?: Facts }) {
   const [open, setOpen] = useState(false);
+  const chrome = useTabChrome();
   const insets = useSafeAreaInsets();
+  // 固定在底栏上方：缩起后也不往下落，免得落在原来「运动」的位置被误点（0.1.45）。不在 Tab 里就贴底。
+  const bottom = chrome ? insets.bottom + BAR_GAP + BAR_H + space.md : space.lg;
   return (
     <>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="问一句，先看它看到的数"
-        onPress={() => setOpen(true)}
-        style={({ pressed }) => ({
-          position: 'absolute',
-          right: space.lg,
-          bottom: space.lg,
-          minHeight: touch,
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: space.sm,
-          paddingHorizontal: space.lg + 2,
-          borderRadius: touch / 2,
-          borderWidth: 1.5,
-          borderColor: colors.agent,
-          backgroundColor: colors.cardAlt,
-          opacity: pressed ? 0.8 : 1,
-        })}
-      >
-        <AgentMark size={18} dot={null} />
-        <Text style={{ color: colors.text, fontSize: font.callout, fontWeight: '700' }}>问一句</Text>
-      </Pressable>
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <Pressable accessibilityLabel="关掉" onPress={() => setOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} />
-        <View style={{ backgroundColor: colors.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: insets.bottom + space.lg, maxHeight: '75%', gap: space.md }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-            <AgentMark />
-            <Text style={{ flex: 1, color: colors.text, fontSize: font.title, fontWeight: '700' }}>问一句 · {page}</Text>
-            <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={{ minWidth: touch, minHeight: touch, alignItems: 'flex-end', justifyContent: 'center' }}>
-              <Text style={{ color: colors.sub, fontSize: font.body }}>关掉</Text>
-            </Pressable>
-          </View>
-          <Text style={{ color: colors.textSoft, fontSize: font.body, lineHeight: 21 }}>我回答时只看这些数，下面就是它们。</Text>
-          <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 0 }}>
+      <View style={{ position: 'absolute', right: space.lg, bottom }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="问一句，先看我看到的数和说明"
+          onPress={() => setOpen(true)}
+          style={({ pressed }) => [glassStyle(touch / 2), {
+            minHeight: touch,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: space.sm,
+            paddingHorizontal: space.lg + 2,
+            borderWidth: 1.5,
+            borderColor: colors.agent,
+            opacity: pressed ? 0.8 : 1,
+          }]}
+        >
+          <AgentMark size={18} gap={colors.card} />
+          <Text style={{ color: colors.text, fontSize: font.callout, fontWeight: '700' }}>问一句</Text>
+        </Pressable>
+      </View>
+      <Sheet visible={open} onClose={() => setOpen(false)} title={`问一句 · ${page}`} mark={<AgentMark />}>
+        <View style={{ gap: space.md }}>
+          <Text style={{ color: colors.textSoft, fontSize: font.body, lineHeight: 21 }}>我回答时只看这些数和下面的说明。</Text>
+          <View>
+            <Text style={{ color: colors.sub, fontSize: font.footnote }}>我看到的数</Text>
             {items.map((item, i) => (
               <View key={item.key} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: space.md, paddingVertical: space.md, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border }}>
                 <Text style={{ color: colors.sub, fontSize: font.body }}>{item.label}</Text>
@@ -174,12 +171,18 @@ export function AskButton({ page, items }: { page: string; items: EvidenceItem[]
                 </Text>
               </View>
             ))}
-          </ScrollView>
+          </View>
+          {topics?.length && facts ? (
+            <View>
+              <Text style={{ color: colors.sub, fontSize: font.footnote }}>这些数是什么</Text>
+              <TopicList ids={topics} facts={facts} />
+            </View>
+          ) : null}
           <Text style={{ color: colors.sub, fontSize: font.footnote, lineHeight: 18 }}>
-            下一版接上问答：「为什么是这个建议」「我想今天换个练法」。现在先看数。
+            以后可以直接问我「为什么是这个建议」「今天想换个练法」，现在先看这些。
           </Text>
         </View>
-      </Modal>
+      </Sheet>
     </>
   );
 }

@@ -72,8 +72,9 @@ export function ArcGauge({
           {band ? <Path d={arcPath(c, c, r, at(band[0]), at(band[1]))} stroke={colors.blue} strokeOpacity={0.45} strokeWidth={9} fill="none" /> : null}
           {fraction != null && fraction > 0 ? <Path d={arcPath(c, c, r, ARC.start, at(fraction))} stroke={color} strokeWidth={9} strokeLinecap="round" fill="none" /> : null}
           {tick != null ? (() => {
-            const [x1, y1] = polar(c, c, r - 8, at(tick));
-            const [x2, y2] = polar(c, c, r + 9, at(tick));
+            // 从弧的内沿往外画，不伸进中心压住数字（0.1.45）。
+            const [x1, y1] = polar(c, c, r - 5, at(tick));
+            const [x2, y2] = polar(c, c, r + 10, at(tick));
             return <Line x1={x1} y1={y1} x2={x2} y2={y2} stroke={colors.text} strokeWidth={2} />;
           })() : null}
           {band && bandLabels ? band.map((f, i) => {

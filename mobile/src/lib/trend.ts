@@ -44,7 +44,7 @@ export function baselineSentence(b: Baseline, unit: string, digits = 0): string 
   const tail = unit ? ` ${unit}` : '';
   const parts: string[] = [];
   if (b.avg7 != null) parts.push(`近 7 日均 ${fmt(b.avg7)}${tail}`);
-  if (b.avg28 != null) parts.push(`你的 28 日基线是 ${fmt(b.avg28)}${tail}`);
+  if (b.avg28 != null) parts.push(`你平时是 ${fmt(b.avg28)}${tail}`);
   return parts.length ? `${parts.join('，')}。` : undefined;
 }
 

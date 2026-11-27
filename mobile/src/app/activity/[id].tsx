@@ -1,7 +1,7 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { LineChart, ZoneBars } from '@/components/charts';
-import { colors, font, space } from '@/components/theme';
+import { colors, font, space, themed } from '@/components/theme';
 import { Card, Empty, LoadingBlock, MetricTile, Muted, Row, Screen, SectionTitle } from '@/components/ui';
 import { isHardSession } from '@/lib/advice';
 import { activityTitle, sportSuffix } from '@/lib/labels';
@@ -10,7 +10,7 @@ import { useData } from '@/lib/store';
 
 /** 步频纵轴至少拉开这么多，避免几步的起伏铺满整张图。 */
 const CADENCE_AXIS_SPAN = 30;
-const PERFORMANCE: Record<string, string> = { excellent: '很好', great: '很好', good: '良好', average: '一般', 'below average': '低于平均', poor: '偏差' };
+const PERFORMANCE: Record<string, string> = { excellent: '很好', great: '很好', good: '良好', average: '一般', 'below average': '低于平均', poor: '较差' };
 const performanceZh = (raw: string) => PERFORMANCE[raw.trim().toLowerCase()] ?? raw.trim();
 
 export default function ActivityDetail() {
@@ -31,7 +31,7 @@ export default function ActivityDetail() {
       <Card>
         <Muted>
           {fmtDateTime(a.startTime)}{sportSuffix(a.name, a.sport)}
-          {isHardSession(a) ? ' · 高强度' : ''}
+          {isHardSession(a) ? ' · 强度课' : ''}
         </Muted>
         <Row>
           {a.distanceM > 0 && <MetricTile plain label="距离" value={fmtKm(a.distanceM)} unit="km" />}
@@ -140,8 +140,8 @@ export default function ActivityDetail() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   lapRow: { flexDirection: 'row', paddingVertical: space.sm },
   lapCell: { flex: 1, color: colors.text, fontSize: font.subhead, fontVariant: ['tabular-nums'] },
   lapHead: { color: colors.sub, fontWeight: '600' },
-});
+}));

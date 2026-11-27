@@ -8,7 +8,7 @@ test('趋势句只用 7 日和 28 日基线', () => {
   const end = '2026-11-08';
   const points = Array.from({ length: 30 }, (_, i) => ({ date: addDays(end, -29 + i), value: i >= 22 && i < 29 ? 60 : 40 }));
   const sentence = baselineSentence(seriesBaseline(points, end), 'ms');
-  assert.equal(sentence, '近 7 日均 60 ms，你的 28 日基线是 45 ms。');
+  assert.equal(sentence, '近 7 日均 60 ms，你平时是 45 ms。');
   assert.equal(baselineSentence({ trend: 'normal' }, 'ms'), undefined);
 });
 

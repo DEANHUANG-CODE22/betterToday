@@ -174,12 +174,12 @@ export function assessRecovery(sleep: SleepNight[], date: ISODate): RecoveryAsse
     score = Math.round(Math.max(0, Math.min(100, score)));
   }
 
-  if (hrv.trend === 'down') reasons.push(`昨晚身体有点紧 —— HRV 比你 28 日的常态低 ${pct(hrv.deltaPct)}，今天别再加码`);
-  else if (hrv.trend === 'up') reasons.push(`昨晚恢复得比平时好 —— HRV 比你 28 日的常态高 ${pct(hrv.deltaPct)}，还有余量`);
-  else if (hrv.value != null) reasons.push('昨晚的恢复在常态里 —— HRV 没有偏离你的基线');
-  if (restingHr.trend === 'up') reasons.push(`身体比平时费劲 —— 静息心率比你的基线高 ${Math.round(restingHr.value! - restingHr.avg28!)} bpm，今天收着点`);
-  else if (restingHr.trend === 'down') reasons.push('静息心率比平时低 —— 相对你的基线，在放松的一侧');
-  else if (restingHr.value != null) reasons.push('静息心率在常态里 —— 没有偏离你的基线');
+  if (hrv.trend === 'down') reasons.push(`昨晚身体有点紧 —— HRV 比你平时低 ${pct(hrv.deltaPct)}`);
+  else if (hrv.trend === 'up') reasons.push(`昨晚恢复得比平时好 —— HRV 比你平时高 ${pct(hrv.deltaPct)}，还有余量`);
+  else if (hrv.value != null) reasons.push('昨晚的恢复和平时一样 —— HRV 没有偏离你的平时');
+  if (restingHr.trend === 'up') reasons.push(`身体比平时费劲 —— 静息心率比你平时高 ${Math.round(restingHr.value! - restingHr.avg28!)} bpm`);
+  else if (restingHr.trend === 'down') reasons.push('静息心率比平时低 —— 在放松的一侧');
+  else if (restingHr.value != null) reasons.push('静息心率和平时一样 —— 没有偏离你的平时');
   if (!night) reasons.push('昨夜没有睡眠数据 —— 缺的是这一晚，不靠它下结论');
   else if (night.totalMin < SLEEP_SHORT_MIN) reasons.push(`这一晚偏短 —— 睡了 ${fmtHM(night.totalMin)}，今天不拿它撑强度`);
   else if (night.totalMin >= 450) reasons.push(`睡够了 —— ${fmtHM(night.totalMin)}，够支撑今天的安排`);
@@ -211,7 +211,7 @@ export function detectAnomalies(daily: DailyHealth[], sleep: SleepNight[], date:
       else break;
     }
     if (streak === days) {
-      out.push({ metric: c.metric, message: `${c.label}已连续 ${days} 天${c.dir > 0 ? '高于' : '低于'}个人基线` });
+      out.push({ metric: c.metric, message: `${c.label}已连续 ${days} 天${c.dir > 0 ? '高于' : '低于'}平时` });
     }
   }
   return out;

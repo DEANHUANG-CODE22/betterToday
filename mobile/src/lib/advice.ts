@@ -331,11 +331,11 @@ export function dailyAdvice(data: Dataset, date: ISODate, memory?: AdviceMemory)
   if (missingSleep && !hasLoad) {
     return {
       kind: 'unknown',
-      title: '先认识你的基线',
+      title: '先认识你的平时',
       duration: '--',
-      zones: '这 7 天先不给处方',
+      zones: '这 7 天先不给安排',
       reasons: ['睡眠和负荷都还不够'],
-      narrative: '数据已连上的话，接下来 7 天我先看基线，再判断你今天的状态。',
+      narrative: '接下来 7 天我先认识你的平时，之后再给每天的安排。',
       confidence: 'low',
       inputs,
     };
@@ -362,7 +362,7 @@ export function dailyAdvice(data: Dataset, date: ISODate, memory?: AdviceMemory)
             `回来那天起算回归期，前 ${limit} 天不上强度`,
             `中断前周均 ${Math.round(base)} 分钟，回来第一周最多 ${baseWeek} 分钟`,
           ],
-          narrative: `中断第 ${ret.daysIn} 天。先在中断里养好，别用训练去"试试还行不行"。等你回来那天起算回归期，第一周只做中断前一半的量。`,
+          narrative: `中断第 ${ret.daysIn} 天。先在中断里养好，别用训练去「试试还行不行」。等你回来那天起算回归期，第一周只做中断前一半的量。`,
           inputs,
         },
         'low',
@@ -417,7 +417,7 @@ export function dailyAdvice(data: Dataset, date: ISODate, memory?: AdviceMemory)
     conflicts.push(`HRV 不差，但只睡了 ${fmtHM(sleepMin)}`);
   }
   if (anomalies.length && recovery.hrv.trend !== 'down') {
-    conflicts.push('压力或静息心率在偏离，HRV 仍在基线内');
+    conflicts.push('压力或静息心率在偏离，HRV 仍在你平时的范围里');
   }
   if (conflicts.length && confidence === 'high') confidence = 'medium';
   // 两条以上证据互相打架 → 不是「拿不准」，是「证据不足」，降到 low。
@@ -432,7 +432,7 @@ export function dailyAdvice(data: Dataset, date: ISODate, memory?: AdviceMemory)
       duration: '0–20 分钟',
       zones: '想动就散步，保持能说话',
       reasons,
-      narrative: '想动就 20 分钟散步，别超过轻松说话的程度。',
+      narrative: '今天的重点是恢复。',
       inputs,
     }, confidence, conflicts.length ? conflicts : undefined);
   }
@@ -441,7 +441,7 @@ export function dailyAdvice(data: Dataset, date: ISODate, memory?: AdviceMemory)
     const reasons = [
       ...gaps,
       ratio != null && ratio > 1.5 ? `这周加量偏猛 —— 负荷比 ${fmt(ratio)}，超过 1.5，今天别再跑` : '',
-      tsb != null && tsb < -30 ? `疲劳还欠着 —— 状态值 ${fmt(tsb, 0)}，低于 −30，先把账还上` : '',
+      tsb != null && tsb < -30 ? `疲劳还欠着 —— 状态值 ${fmt(tsb, 0)}，低于 −30，今天别跑` : '',
     ].filter(Boolean);
     return finish({
       kind: 'rest',
@@ -449,7 +449,7 @@ export function dailyAdvice(data: Dataset, date: ISODate, memory?: AdviceMemory)
       duration: '0–30 分钟',
       zones: '休息，或 Z1 交叉，不要再跑',
       reasons,
-      narrative: '最近负荷偏高，今天别再加跑步。想动就 30 分钟以内的 Z1，骑车或走路都行。',
+      narrative: '最近负荷偏高。Z1 交叉指骑车或走路，不算跑步。',
       inputs,
     }, confidence, conflicts);
   }
@@ -469,7 +469,7 @@ export function dailyAdvice(data: Dataset, date: ISODate, memory?: AdviceMemory)
       duration: '50–70 分钟（含热身放松）',
       zones: '主课 Z4 或 Z5',
       reasons,
-      narrative: '恢复够，近期强度也不密。主课放在 Z4 或 Z5，热身和放松算在时长里。',
+      narrative: '恢复够，近期强度也不密。',
       inputs,
     }, confidence, conflicts);
   }
@@ -490,8 +490,8 @@ export function dailyAdvice(data: Dataset, date: ISODate, memory?: AdviceMemory)
     zones: 'Z2 为主',
     reasons,
     narrative: hardSessions7d >= 2 || sinceHard < 2
-      ? '这几天强度够了。今天 Z2，别再顶阈值。'
-      : '状态中规中矩。今天一节稳定的 Z2，给下一次强度留力气。',
+      ? '这几天强度够了，别再顶阈值。'
+      : '状态中规中矩，给下一次强度留力气。',
     inputs,
   }, confidence, conflicts);
 }

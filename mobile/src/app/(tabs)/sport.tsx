@@ -5,12 +5,14 @@ import { AdviceBody, AdviceHero, adviceItems } from '@/components/AdviceCard';
 import { AskButton, type EvidenceItem } from '@/components/agent';
 import { SettleCard } from '@/components/SettleCard';
 import { SemiGauge } from '@/components/gauges';
+import { InfoButton } from '@/components/knowledge';
 import { ChevronIcon } from '@/components/icons';
 import { colors, font, space, touch } from '@/components/theme';
 import { Card, Chip, Empty, FadeIn, LoadingBlock, MetricTile, Muted, Row, Screen, SectionTitle } from '@/components/ui';
 import { CONFIDENCE_LABEL, confidenceTip } from '@/lib/agent';
 import { isHardSession, RETURN_KIND_LABEL, RETURN_KIND_ORDER } from '@/lib/advice';
 import { daysBetween, frac, RULE, SCALE } from '@/lib/gauge';
+import { PAGE_TOPICS, type Facts } from '@/lib/knowledge';
 import { activityTitle, SPORT_LABEL, sportSuffix } from '@/lib/labels';
 import { fmtDuration, fmtKm, fmtPace, toISODate, zhMonthDay } from '@/lib/metrics';
 import { useData } from '@/lib/store';
@@ -155,18 +157,22 @@ function sinceHard(activities: Activity[], today: string): number | undefined {
 }
 
 const fmt1 = (v: number) => (Math.round(v * 10) / 10).toFixed(1);
+const KIND_WORD = { rest: '休息', recovery: '回归期', aerobic: '有氧', intensity: '强度', unknown: '不确定' } as const;
 
 /**
  * 训练仪表：建议用到的三个数，外圈刻线就是 advice.ts 自己的门槛（RULE）。
  * 只有这一页的表画红黄警戒段，因为这一页本来就下判断。
  */
-function TrainingGauges({ tsb, acwr, sinceHard: days }: { tsb?: number; acwr?: number; sinceHard?: number }) {
+function TrainingGauges({ tsb, acwr, sinceHard: days, facts }: { tsb?: number; acwr?: number; sinceHard?: number; facts: Facts }) {
   const [t0, t1] = SCALE.tsb;
   const [r0, r1] = SCALE.acwr;
   const [d0, d1] = SCALE.daysSinceHard;
   return (
     <Card style={{ paddingHorizontal: space.xs, gap: space.xs }}>
-      <Text style={{ color: colors.sub, fontSize: font.footnote, paddingHorizontal: space.sm }}>训练仪表 · 刻线是规则自己的门槛</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: space.sm }}>
+        <Text style={{ flex: 1, color: colors.sub, fontSize: font.footnote }}>训练仪表 · 刻线是停跑和不上强度的线</Text>
+        <InfoButton ids={['tsb', 'acwr', 'hard']} facts={facts} title="训练仪表是什么" />
+      </View>
       <View style={{ flexDirection: 'row' }}>
         <SemiGauge
           fraction={tsb != null ? frac(tsb, t0, t1) : undefined}
@@ -177,8 +183,8 @@ function TrainingGauges({ tsb, acwr, sinceHard: days }: { tsb?: number; acwr?: n
           ]}
           marks={[frac(RULE.tsbStop, t0, t1), frac(RULE.tsbNoIntensity, t0, t1)]}
           label="状态值"
-          caption={`${RULE.tsbStop} 停\n${RULE.tsbNoIntensity} 不上强度`}
-          accessibilityLabel={`状态值 ${tsb != null ? Math.round(tsb) : '没有'}。低于 ${RULE.tsbStop} 先停，低于 ${RULE.tsbNoIntensity} 不上强度`}
+          caption={`${RULE.tsbStop} 以下别跑\n${RULE.tsbNoIntensity} 以下不上强度`}
+          accessibilityLabel={`状态值 ${tsb != null ? Math.round(tsb) : '没有'}。低于 ${RULE.tsbStop} 今天别跑，低于 ${RULE.tsbNoIntensity} 不上强度`}
         />
         <SemiGauge
           fraction={acwr != null ? frac(acwr, r0, r1) : undefined}
@@ -186,7 +192,7 @@ function TrainingGauges({ tsb, acwr, sinceHard: days }: { tsb?: number; acwr?: n
           zones={[{ from: frac(RULE.acwrStop, r0, r1), to: 1, color: colors.poor }]}
           marks={[frac(RULE.acwrStop, r0, r1)]}
           label="负荷比"
-          caption={`短期 / 长期\n${RULE.acwrStop} 停`}
+          caption={`短期 / 长期\n超过 ${RULE.acwrStop} 别跑`}
           accessibilityLabel={`负荷比 ${acwr != null ? fmt1(acwr) : '没有'}，超过 ${RULE.acwrStop} 今天别再跑`}
         />
         <SemiGauge
@@ -203,7 +209,7 @@ function TrainingGauges({ tsb, acwr, sinceHard: days }: { tsb?: number; acwr?: n
 }
 
 export default function SportTab() {
-  const { data, today, loading } = useData();
+  const { data, today, loading, beforeMorning } = useData();
   const {
     advice, settlement, showSettlement, todayActs, todayLog, yesterday, hitRate,
     prompt, actOnAdvice, answerReturnKind,
@@ -220,6 +226,17 @@ export default function SportTab() {
   const list = data.activities.filter((a) => !shown.has(a.id) && (filter === 'all' || a.sport === filter)).slice(0, 60);
 
   const tip = confidenceTip(data.sleep, today, advice.confidence);
+  const hardGap = sinceHard(data.activities, today);
+  const tonight = [...data.sleep].reverse().find((n) => n.date <= today && n.recovery != null);
+  const facts: Facts = {
+    today,
+    plan: { word: KIND_WORD[advice.kind], duration: advice.duration, zones: advice.zones },
+    confidence: { level: advice.confidence, tip },
+    acwr: advice.inputs.acwr,
+    tsb: advice.inputs.tsb,
+    hard: { n7: advice.inputs.hardSessions7d, sinceDays: hardGap },
+    recovery: tonight ? { date: tonight.date, score: tonight.recovery } : undefined,
+  };
   const askItems: EvidenceItem[] = showSettlement
     ? [
       { key: 'settle', label: '今天的结算', value: settlement ? '已出' : '没有' },
@@ -238,8 +255,8 @@ export default function SportTab() {
   return (
     <Screen
       refreshable
-      hero={showSettlement ? undefined : <AdviceHero advice={advice} today={today} />}
-      floating={<AskButton page="运动" items={askItems} />}
+      hero={showSettlement ? undefined : <AdviceHero advice={advice} today={today} beforeMorning={beforeMorning} />}
+      floating={<AskButton page="运动" items={askItems} topics={PAGE_TOPICS.sport} facts={facts} />}
     >
       {todayActs.map((a) => <ActivityRow key={a.id} a={a} />)}
       {showSettlement ? (
@@ -286,7 +303,8 @@ export default function SportTab() {
       <TrainingGauges
         tsb={advice.inputs.tsb}
         acwr={advice.inputs.acwr}
-        sinceHard={sinceHard(data.activities, today)}
+        sinceHard={hardGap}
+        facts={facts}
       />
       {showSettlement ? null : (
         <AdviceBody
@@ -375,7 +393,7 @@ export default function SportTab() {
           <Chip key={t} label={SPORT_LABEL[t]} active={filter === t} onPress={() => setFilter(t)} />
         ))}
       </ScrollView>
-      {list.length ? <View>{list.map((a, i) => <ActivityListRow key={a.id} a={a} first={i === 0} />)}</View> : <Empty text="暂无运动记录。" />}
+      {list.length ? <View>{list.map((a, i) => <ActivityListRow key={a.id} a={a} first={i === 0} />)}</View> : <Empty text="还没有运动记录。" />}
 
       <SectionTitle>运动能力</SectionTitle>
       {latest ? (
@@ -390,7 +408,7 @@ export default function SportTab() {
           </Row>
         </Card>
       ) : (
-        <Empty text="暂无运动能力数据。" />
+        <Empty text="还没有运动能力数据。" />
       )}
     </Screen>
   );

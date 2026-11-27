@@ -51,10 +51,10 @@ test('sleepVoice：不出现许可语', () => {
 test('dailyVoice：步数加千分位，静息心率按基线方向说', () => {
   const v = dailyVoice({ date: '2026-11-10', steps: 8678, stress: 38.4, restingHr: 47 }, '这天', { avg28: 46, trend: 'normal' });
   assert.equal(v.title, '这天走了 8,678 步，压力日均 38。');
-  assert.equal(v.body, '静息心率 47，和你的 28 日基线 46 差不多。');
+  assert.equal(v.body, '静息心率 47，和你平时的 46 差不多。');
   const up = dailyVoice({ date: '2026-11-10', restingHr: 52 }, '今天', { avg28: 46, trend: 'up' });
   assert.match(up.title, /没看到步数和压力/);
-  assert.match(up.body, /比你的 28 日基线 46 高/);
+  assert.match(up.body, /比你平时的 46 高/);
 });
 
 test('confidenceTip：把握高时不说话', () => {
@@ -73,7 +73,7 @@ test('confidenceTip：近 7 天够、只缺昨夜时说今晚戴表', () => {
 
 test('confidenceTip：有昨夜但没 HRV', () => {
   const sleep = ['2026-11-13', '2026-11-14', '2026-11-15'].map((d) => night(d, 400));
-  assert.equal(confidenceTip(sleep, '2026-11-15', 'medium'), '昨夜没测到 HRV，只能按基线看。');
+  assert.equal(confidenceTip(sleep, '2026-11-15', 'medium'), '昨夜没测到 HRV，只能按你平时的数看。');
 });
 
 test('splitReason：按「 —— 」拆成人话和参照', () => {

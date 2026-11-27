@@ -8,7 +8,7 @@ import { useData } from '@/lib/store';
 /** 当天建议的计算，以及落库、早间通知。任意 Tab 挂上都会跑，不依赖人先打开「运动」。 */
 export function useTodayAdvice(options?: { persist?: boolean }) {
   const persist = options?.persist !== false;
-  const { data, today, logs, returnKind, returnKindFor, recordAdvice, actOnAdvice, answerReturnKind } = useData();
+  const { data, today, beforeMorning, logs, returnKind, returnKindFor, recordAdvice, actOnAdvice, answerReturnKind } = useData();
   const memory = useMemo<AdviceMemory>(() => {
     const recent = logs.filter((log) => log.date < today);
     const yesterday = recent.find((log) => log.date === addDays(today, -1));
@@ -39,7 +39,8 @@ export function useTodayAdvice(options?: { persist?: boolean }) {
   useEffect(() => { morningBody.current = bodyText; }, [bodyText]);
 
   useEffect(() => {
-    if (!persist) return;
+    // 还没到早上：今天还是昨天，昨天发出的那份不能被半夜同步后重算的覆盖（结算要对着发出时的建议）。
+    if (!persist || beforeMorning) return;
     const saved = logs.find((log) => log.date === today);
     const frozen = !!saved && (!!saved.userAction || todayActs.length > 0);
     if (!frozen && (!saved || saved.kind !== advice.kind || saved.title !== advice.title || saved.confidence !== advice.confidence)) {
@@ -54,7 +55,7 @@ export function useTodayAdvice(options?: { persist?: boolean }) {
       });
     }
     void scheduleMorning(morningBody.current, false);
-  }, [advice, logs, persist, recordAdvice, today, todayActs.length]);
+  }, [advice, logs, persist, beforeMorning, recordAdvice, today, todayActs.length]);
 
   return {
     advice: {

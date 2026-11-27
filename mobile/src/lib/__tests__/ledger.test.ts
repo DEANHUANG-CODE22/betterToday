@@ -34,8 +34,8 @@ test('buildLedger：先点按钮写下的占位行只算动作，不算建议', 
 
 test('ledgerSummary：只数，不评价', () => {
   const rows = buildLedger([log('2026-11-25', { userAction: 'followed' }), log('2026-11-24', { userAction: 'changed', note: '休息' })], { '2026-11-25': 4, '2026-11-24': 3 }, [], '2026-11-25', 2);
-  assert.equal(ledgerSummary(rows), '2 天里记了 2 天感觉，平均 3.5；点过 2 次按钮，照做 1 次。');
-  assert.equal(ledgerSummary(buildLedger([], {}, [], '2026-11-25', 3)), '3 天里记了 0 天感觉；还没点过按钮。');
+  assert.equal(ledgerSummary(rows), '2 天里记了 2 天感觉，平均 3.5；回过 2 次，照做 1 次。');
+  assert.equal(ledgerSummary(buildLedger([], {}, [], '2026-11-25', 3)), '3 天里记了 0 天感觉；还没回过。');
 });
 
 test('isFeel', () => {

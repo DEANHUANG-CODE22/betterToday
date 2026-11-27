@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Link, Tabs } from 'expo-router';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { BoltIcon, GearIcon, HeartIcon, MoonIcon, RefreshIcon } from '@/components/icons';
+import { FloatingTabBar, TabChromeProvider } from '@/components/tabChrome';
 import { colors, space, touch } from '@/components/theme';
 import { useData } from '@/lib/store';
 import { useTodayAdvice } from '@/lib/useTodayAdvice';
@@ -62,18 +63,16 @@ function HeaderActions() {
 
 export default function TabLayout() {
   return (
-    <>
+    <TabChromeProvider>
     <AdviceSync />
     <Tabs
+      // 悬浮底栏：自己画，往下滚缩到左下角（components/tabChrome.tsx）。
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerStyle: { backgroundColor: colors.bg },
         headerTintColor: colors.text,
         headerShadowVisible: false,
         headerRight: () => <HeaderActions />,
-        tabBarStyle: { backgroundColor: colors.card, borderTopColor: colors.border },
-        // 当前 Tab 用正文色；橙色留给 Agent 开口的地方。
-        tabBarActiveTintColor: colors.text,
-        tabBarInactiveTintColor: colors.sub,
         sceneStyle: { backgroundColor: colors.bg },
       }}
     >
@@ -81,6 +80,6 @@ export default function TabLayout() {
       <Tabs.Screen name="data" options={{ title: '日常健康', tabBarIcon: ({ color }) => <HeartIcon color={color} /> }} />
       <Tabs.Screen name="sport" options={{ title: '运动', tabBarIcon: ({ color }) => <BoltIcon color={color} /> }} />
     </Tabs>
-    </>
+    </TabChromeProvider>
   );
 }

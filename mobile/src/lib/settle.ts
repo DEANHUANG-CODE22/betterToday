@@ -121,10 +121,10 @@ export function settle(advice: Advice, activities: Activity[], date: ISODate, ac
   // 结算的作用是对账，不是抓人——先按记录的强度判，再谈按钮说了什么。
   if (advice.kind === 'rest' || advice.kind === 'recovery') {
     if (actualMin <= target.max) {
-      return { outcome: 'matched', headline: '今天按恢复走，对', detail: fact, next: '明天看恢复再定。' };
+      return { outcome: 'matched', headline: advice.kind === 'rest' ? '按休息走了' : '按回归期的量走了', detail: fact, next: '明天看恢复再定。' };
     }
     if (!actualHard && actualMin <= target.max * 1.5) {
-      return { outcome: 'equivalent', headline: '比建议的多一点，还行', detail: fact, next: '接下来：今天不用再补，明天按常规走。' };
+      return { outcome: 'equivalent', headline: '比我建议的多一点', detail: fact, next: '接下来：今天不用再补，明天按常规走。' };
     }
     return {
       outcome: 'deviated',

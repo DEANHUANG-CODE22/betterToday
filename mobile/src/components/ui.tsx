@@ -3,7 +3,8 @@ import { AccessibilityInfo, Animated, Easing, Pressable, ScrollView, StyleSheet,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useData } from '@/lib/store';
 import { fmtDateTime, zhMonthDay, type Trend } from '@/lib/metrics';
-import { colors, font, radius, space, touch } from './theme';
+import { BAR_GAP, BAR_H, useTabChrome, useChromeScroll } from './tabChrome';
+import { colors, font, radius, space, touch, themed } from './theme';
 
 export type Scroller = ComponentRef<typeof ScrollView>;
 
@@ -25,6 +26,9 @@ export function Screen({ children, mockNote, scrollRef, refreshable, hero, float
   const { source, error, dismissError, lastSync } = useData();
   const staleDay = useStaleDay();
   const insets = useSafeAreaInsets();
+  // 在 Tab 页里：滚动告诉悬浮底栏缩起 / 展开；底部多留出底栏和「问一句」的高度。
+  const chrome = useTabChrome();
+  const onChromeScroll = useChromeScroll();
   const note = mockNote === null ? null : (mockNote ?? DEFAULT_MOCK);
   // 最新一天早于今天：环下的小字日期不够显眼，在页顶说一次数据停在哪天。
   // 只说停在哪，不猜原因（没同步、没戴表都可能）。演练模式的日期是造的，不提示。
@@ -36,12 +40,14 @@ export function Screen({ children, mockNote, scrollRef, refreshable, hero, float
     <ScrollView
       ref={scrollRef}
       style={{ backgroundColor: colors.bg }}
-      contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: insets.bottom + touch + space.xl * 2 }}
+      contentContainerStyle={{ padding: space.lg, gap: space.md, paddingBottom: insets.bottom + (chrome ? BAR_H + BAR_GAP * 2 + touch + space.xl : touch + space.xl * 2) }}
+      onScroll={onChromeScroll}
+      scrollEventThrottle={16}
     >
       {hero ? <View style={{ marginHorizontal: -space.lg, marginTop: -space.lg, marginBottom: space.xs }}>{hero}</View> : null}
       {source === 'scenario' ? (
         <Text style={[styles.banner, { color: colors.fair, fontWeight: '700' }]}>
-          演练模式：当前数据是造出来的，不是你的记录。回设置页可退出。
+          演练模式：当前数据是造出来的，不是你的记录。到设置里连点版本号 5 次，进演练页退出。
         </Text>
       ) : null}
       {error ? (
@@ -172,7 +178,7 @@ export function Empty({ text }: { text: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   card: { backgroundColor: colors.card, borderRadius: radius, padding: space.lg, gap: space.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   rule: { paddingVertical: space.md, gap: space.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   section: { color: colors.text, fontSize: font.title, fontWeight: '700' },
@@ -183,4 +189,4 @@ const styles = StyleSheet.create({
   tileUnit: { color: colors.sub, fontSize: font.footnote, fontWeight: '500' },
   chip: { minHeight: touch, paddingHorizontal: space.md, justifyContent: 'center', borderRadius: radius, borderWidth: 1, borderColor: colors.border },
   banner: { color: colors.sub, fontSize: font.footnote, lineHeight: 18 },
-});
+}));

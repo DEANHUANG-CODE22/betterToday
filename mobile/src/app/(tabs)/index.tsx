@@ -4,9 +4,11 @@ import { Text, View } from 'react-native';
 import { AgentVoice, AskButton, type EvidenceItem } from '@/components/agent';
 import { MorningFeel } from '@/components/feel';
 import { ArcGauge } from '@/components/gauges';
+import { InfoButton } from '@/components/knowledge';
 import { colors, font, space } from '@/components/theme';
 import { Card, LoadingBlock, Muted, Screen } from '@/components/ui';
-import { fmtHM, fmtHMShort } from '@/lib/metrics';
+import { addDays, detectAnomalies, fmtHM, fmtHMShort } from '@/lib/metrics';
+import { PAGE_TOPICS, type Facts } from '@/lib/knowledge';
 import { scheduleMorning } from '@/lib/notify';
 import { useData } from '@/lib/store';
 import { sleepVoice } from '@/lib/agent';
@@ -15,7 +17,7 @@ import { judgmentTone, seriesBaseline } from '@/lib/trend';
 import { useTodayAdvice } from '@/lib/useTodayAdvice';
 import type { SleepNight } from '@/lib/types';
 
-const RECOVERY_LEVEL: Record<string, string> = { fresh: '充沛', normal: '正常', good: '良好', tired: '疲劳', fatigued: '疲劳', exhausted: '透支', poor: '偏差', optimal: '很好' };
+const RECOVERY_LEVEL: Record<string, string> = { fresh: '充沛', normal: '正常', good: '良好', tired: '疲劳', fatigued: '疲劳', exhausted: '透支', poor: '较差', optimal: '很好' };
 const TONE = { good: colors.good, fair: colors.fair, poor: colors.poor };
 const zh = (raw: string | undefined, table: Record<string, string>) => (raw ? table[raw.trim().toLowerCase()] ?? raw.trim() : undefined);
 const dayLabel = (d: string) => `${Number(d.slice(5, 7))} 月 ${Number(d.slice(8, 10))} 日`;
@@ -33,7 +35,7 @@ function openTrend(metric: 'sleep' | 'hrv' | 'recovery', date: string) {
 }
 
 export default function SleepScreen() {
-  const { data, today, loading, feelings, setFeel } = useData();
+  const { data, today, loading, feelings, setFeel, beforeMorning } = useData();
   const { morningBody } = useTodayAdvice({ persist: false });
   useFocusEffect(useCallback(() => {
     void scheduleMorning(morningBody.current, true);
@@ -99,15 +101,27 @@ export default function SleepScreen() {
   // 某块表的数不是睡眠那一晚的：中心小字写它自己的日期，不然会被当成昨夜的数（2026-11-25 走查）。
   const otherNight = (date?: string) => (date && sleepNight && date !== sleepNight.date ? dayLabel(date) : undefined);
 
+  // 知识条目「你的」一段要的数，全部来自上面已经算好的事实，不另算。
+  const feelVals = Array.from({ length: 14 }, (_, i) => feelings[addDays(today, -i)]).filter((v): v is NonNullable<typeof v> => v != null);
+  const facts: Facts = {
+    today,
+    sleep: sleepNight ? { date: sleepNight.date, totalMin: sleepNight.totalMin, avg28Min: sleepBase != null ? sleepBase * 60 : undefined, deepMin: sleepNight.deepMin, lightMin: sleepNight.lightMin, remMin: sleepNight.remMin, awakeMin: sleepNight.awakeMin } : undefined,
+    hrv: hrvNight?.hrv != null ? { date: hrvNight.date, value: hrvNight.hrv, base: hrvBase, low: hrvNight.hrvLow, high: hrvNight.hrvHigh } : undefined,
+    recovery: recoveryNight ? { date: recoveryNight.date, score: recoveryNight.recovery, level: recoveryLevel, fullH: recoveryNight.fullRecoveryH } : undefined,
+    deviations: detectAnomalies(data.daily, data.sleep, today).map((a) => a.message),
+    feel: { today: feelings[today], avg: feelVals.length ? feelVals.reduce((a, b) => a + b, 0) / feelVals.length : undefined, n: feelVals.length },
+  };
+
   return (
-    <Screen refreshable floating={<AskButton page="睡眠与恢复" items={items} />}>
+    <Screen refreshable floating={<AskButton page="睡眠与恢复" items={items} topics={PAGE_TOPICS.sleep} facts={facts} />}>
       <AgentVoice
         by={sleepNight ? `看了你 ${dayLabel(sleepNight.date)}的数据` : '还没有数据'}
         title={voice.title}
         body={voice.body || undefined}
         action={{ label: '看今天练什么', onPress: () => router.navigate('/sport') }}
       />
-      <Card style={{ flexDirection: 'row', paddingHorizontal: space.xs, paddingVertical: space.md }}>
+      <Card style={{ paddingHorizontal: space.xs, paddingVertical: space.md, gap: 0 }}>
+        <View style={{ flexDirection: 'row' }}>
         <ArcGauge
           missing={!sleepNight}
           fraction={sleepNight ? frac(sleepNight.totalMin / 60, ...SCALE.sleepH) : undefined}
@@ -116,7 +130,7 @@ export default function SleepScreen() {
           center={sleepNight ? <Stack main={<HM min={sleepNight.totalMin} />} sub={sleepNight.sleepScore != null ? `${sleepNight.sleepScore} 分` : undefined} /> : <Missing />}
           label="睡眠"
           onPress={sleepNight ? () => openTrend('sleep', sleepNight.date) : undefined}
-          accessibilityLabel={sleepNight ? `睡眠 ${fmtHM(sleepNight.totalMin)}，${dayLabel(sleepNight.date)}${sleepBase != null ? `，28 日基线 ${fmtHM(Math.round(sleepBase * 60))}` : ''}，查看趋势` : '没有睡眠记录'}
+          accessibilityLabel={sleepNight ? `睡眠 ${fmtHM(sleepNight.totalMin)}，${dayLabel(sleepNight.date)}${sleepBase != null ? `，平时 ${fmtHM(Math.round(sleepBase * 60))}` : ''}，查看趋势` : '没有睡眠记录'}
         />
         <ArcGauge
           missing={hrvNight?.hrv == null}
@@ -137,7 +151,8 @@ export default function SleepScreen() {
         <ArcGauge
           missing={recoveryNight?.recovery == null}
           fraction={recoveryNight?.recovery != null ? frac(recoveryNight.recovery, ...SCALE.recovery) : undefined}
-          color={recoveryTone ? TONE[recoveryTone] : colors.text}
+          // 手表没给档位：弧用中性灰，不用正文色（浅色下是一整段很重的黑弧）。
+          color={recoveryTone ? TONE[recoveryTone] : colors.sub}
           center={recoveryNight?.recovery != null
             ? <Stack main={<Text style={{ color: colors.text, fontSize: font.lead, fontWeight: '700' }}>{Math.round(recoveryNight.recovery)}</Text>} sub={otherNight(recoveryNight.date) ?? recoveryLevel} />
             : <Missing />}
@@ -145,8 +160,11 @@ export default function SleepScreen() {
           onPress={recoveryNight ? () => openTrend('recovery', recoveryNight.date) : undefined}
           accessibilityLabel={recoveryNight?.recovery != null ? `手表给出的恢复分 ${Math.round(recoveryNight.recovery)}${recoveryLevel ? `，${recoveryLevel}` : ''}，查看` : '手表没给恢复分'}
         />
+        </View>
+        <InfoButton ids={['sleep', 'hrv', 'recovery']} facts={facts} title="这三块表是什么" label="这三块表是什么" style={{ marginRight: space.sm }} />
       </Card>
-      <MorningFeel value={feelings[today]} onPick={(v) => { void setFeel(today, v); }} />
+      {/* 还没到早上时不问早上感觉（今天还是昨天）。 */}
+      {beforeMorning ? null : <MorningFeel value={feelings[today]} onPick={(v) => { void setFeel(today, v); }} />}
       {sleepNight ? (
         <Card style={{ gap: space.md }}>
           {sleepNight.bedtime || sleepNight.wakeTime ? <Muted>{hhmm(sleepNight.bedtime)} 入睡 · {hhmm(sleepNight.wakeTime)} 起床</Muted> : null}
@@ -199,9 +217,10 @@ function HM({ min }: { min: number }) {
   const m = Math.round(min % 60);
   return (
     // 一行放下：手机系统字体偏宽时（衬线字体）会把分钟挤到第二行被裁掉，所以缩字不换行。
-    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={{ color: colors.text, fontVariant: ['tabular-nums'], maxWidth: 70 }}>
+    // 宽度收在弧的内圈里（约 60），不碰基线刻线（0.1.45）。
+    <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} style={{ color: colors.text, fontVariant: ['tabular-nums'], maxWidth: 56 }}>
       <Text style={{ fontSize: font.lead, fontWeight: '700' }}>{h}</Text>
-      <Text style={{ fontSize: font.caption, color: colors.sub }}>时</Text>
+      <Text style={{ fontSize: font.subhead, color: colors.sub }}>时</Text>
       <Text style={{ fontSize: font.lead, fontWeight: '700' }}>{m}</Text>
     </Text>
   );

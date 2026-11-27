@@ -20,7 +20,7 @@ import {
 import type { DailyHealth, Dataset, ISODate, SleepNight } from '@/lib/types';
 
 const TONE = { good: colors.good, fair: colors.fair, poor: colors.poor };
-const RECOVERY_LEVEL: Record<string, string> = { fresh: '充沛', normal: '正常', good: '良好', tired: '疲劳', fatigued: '疲劳', exhausted: '透支', poor: '偏差', optimal: '很好' };
+const RECOVERY_LEVEL: Record<string, string> = { fresh: '充沛', normal: '正常', good: '良好', tired: '疲劳', fatigued: '疲劳', exhausted: '透支', poor: '较差', optimal: '很好' };
 const BARS = new Set<TrendMetric>(['steps', 'floors', 'exerciseMin', 'activeKcal']);
 const zh = (raw: string | undefined, table: Record<string, string>) => (raw ? table[raw.trim().toLowerCase()] ?? raw.trim() : undefined);
 const dayLabel = (d: string) => `${Number(d.slice(5, 7))} 月 ${Number(d.slice(8, 10))} 日`;
@@ -164,11 +164,11 @@ function SeriesBody({
             onSelect={setPicked}
             series={[
               { values: model.values, color: lineColor, label: spec.title },
-              ...(baselineLine != null ? [{ values: model.values.map(() => baselineLine), color: colors.sub, label: '28 日基线', dashed: true }] : []),
+              ...(baselineLine != null ? [{ values: model.values.map(() => baselineLine), color: colors.sub, label: '平时（前 28 天平均）', dashed: true }] : []),
             ]}
           />
           {metric === 'sleep' && marks?.some(Boolean) ? <Muted>绿点 85 分及以上，黄点 70–84，红点 70 分以下。</Muted> : null}
-          {metric === 'hrv' && band && band.low.some((v) => v != null) ? <Muted>{hrvMarks?.some(Boolean) ? '色带是手表给的正常区间，黄点是出了区间的夜晚。' : '色带是手表给的正常区间。'}</Muted> : null}
+          {metric === 'hrv' && band && band.low.some((v) => v != null) ? <Muted>{hrvMarks?.some(Boolean) ? '色带是手表给的正常范围，黄点是出了范围的夜晚。' : '色带是手表给的正常范围。'}</Muted> : null}
         </Card>
       ) : (
         <Muted>天数还不够，凑满 4 天才画趋势。</Muted>
@@ -206,7 +206,7 @@ function HrvLines({ night, resting }: { night?: SleepNight; resting?: number }) 
   if (!range && night?.hrvBaseline == null && resting == null) return null;
   return (
     <Card plain>
-      {range ? <Muted>正常区间 {night?.hrvLow}–{night?.hrvHigh} ms</Muted> : null}
+      {range ? <Muted>正常范围 {night?.hrvLow}–{night?.hrvHigh} ms</Muted> : null}
       {night?.hrvBaseline != null ? <Muted>手表基线 {night.hrvBaseline} ms</Muted> : null}
       {resting != null ? <Muted>同一天静息心率 {Math.round(resting)} bpm</Muted> : null}
     </Card>

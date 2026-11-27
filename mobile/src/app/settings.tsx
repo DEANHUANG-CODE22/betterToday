@@ -3,7 +3,8 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card, Muted, Screen, SectionTitle } from '@/components/ui';
-import { colors, font, radius, space, touch } from '@/components/theme';
+import { useTheme, type Appearance } from '@/components/ThemeProvider';
+import { colors, font, radius, space, touch, themed } from '@/components/theme';
 import { RETURN_KIND_LABEL, RETURN_KIND_ORDER, type ReturnKind } from '@/lib/advice';
 import { defaultRegion, loadSession } from '@/lib/coros/oauth';
 import { fmtDateTime, toISODate } from '@/lib/metrics';
@@ -111,13 +112,13 @@ export default function Settings() {
         </>
       )}
 
-      <SectionTitle>我现在的状态</SectionTitle>
+      <SectionTitle>中断原因</SectionTitle>
       <Card>
         <Muted>
-          {'中断满 7 天时我会问你一次。也可以现在先说——它决定回来那几周走多慢。声明只在进入回归期时起作用，不会提前改变今天的建议。'}
+          {'中断满 7 天时我会问你一次，也可以现在先选。选的原因决定回来那几周的节奏，只在回归期里起作用，不改今天的建议。'}
         </Muted>
         <Text style={{ color: colors.text, fontSize: font.callout, fontWeight: '600' }}>
-          {returnKind ? `当前：${RETURN_KIND_LABEL[returnKind]}` : '还没声明（默认按 3–4 周算）'}
+          {returnKind ? `当前：${RETURN_KIND_LABEL[returnKind]}` : '还没选（默认按 3–4 周算）'}
         </Text>
         {returnKind && returnKindFor ? <Muted>这次中断从 {Number(returnKindFor.slice(5, 7))} 月 {Number(returnKindFor.slice(8, 10))} 日起算</Muted> : null}
         <View style={{ gap: space.xs }}>
@@ -154,10 +155,13 @@ export default function Settings() {
         ) : null}
       </Card>
 
+      <SectionTitle>外观</SectionTitle>
+      <AppearancePicker />
+
       <SectionTitle>关于授权</SectionTitle>
       <Card plain>
         <Muted>
-          点连接后会打开高驰登录页。登录完成会自动回到这里并开始同步。授权只发生在你的手机和高驰之间，token 存在本机安全存储里。
+          点连接后会打开高驰登录页。登录完成会自动回到这里并开始同步。授权只发生在你的手机和高驰之间，登录凭证只存在这台手机里。
         </Muted>
       </Card>
 
@@ -168,8 +172,42 @@ export default function Settings() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   btn: { backgroundColor: colors.accent, borderRadius: radius, minHeight: touch, paddingHorizontal: space.lg, alignItems: 'center', justifyContent: 'center' },
   ghost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
   btnText: { color: colors.bg, fontWeight: '700', fontSize: font.callout },
-});
+}));
+
+/** 外观三选一。换了之后整个界面会重画一次（停在当前页）。 */
+function AppearancePicker() {
+  const { appearance, setAppearance } = useTheme();
+  const options: { key: Appearance; label: string }[] = [
+    { key: 'system', label: '跟随系统' },
+    { key: 'light', label: '浅色' },
+    { key: 'dark', label: '深色' },
+  ];
+  return (
+    <Card>
+      <View style={{ gap: space.xs }}>
+        {options.map((o, i) => {
+          const on = appearance === o.key;
+          return (
+            <Pressable
+              key={o.key}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              onPress={() => setAppearance(o.key)}
+              style={({ pressed }) => ({ minHeight: touch, flexDirection: 'row', alignItems: 'center', gap: space.md, borderTopWidth: i === 0 ? 0 : 1, borderTopColor: colors.border, opacity: pressed ? 0.6 : 1 })}
+            >
+              <Text style={{ flex: 1, color: colors.text, fontSize: font.body, fontWeight: on ? '700' : '400' }}>{o.label}</Text>
+              <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: on ? colors.text : colors.sub, alignItems: 'center', justifyContent: 'center' }}>
+                {on ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.text }} /> : null}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Muted>换了之后界面会重画一次。</Muted>
+    </Card>
+  );
+}

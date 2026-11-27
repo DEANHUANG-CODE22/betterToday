@@ -63,7 +63,7 @@ export function ledgerSummary(rows: LedgerRow[]): string {
   const avg = felt.length ? Math.round((felt.reduce((s, r) => s + r.feel!, 0) / felt.length) * 10) / 10 : undefined;
   const parts = [
     `${rows.length} 天里记了 ${felt.length} 天感觉${avg != null ? `，平均 ${avg.toFixed(1)}` : ''}`,
-    acted.length ? `点过 ${acted.length} 次按钮，照做 ${followed} 次` : '还没点过按钮',
+    acted.length ? `回过 ${acted.length} 次，照做 ${followed} 次` : '还没回过',
   ];
   return `${parts.join('；')}。`;
 }

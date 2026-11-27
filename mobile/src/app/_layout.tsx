@@ -1,12 +1,24 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { ThemeProvider, useTheme } from '@/components/ThemeProvider';
 import { colors } from '@/components/theme';
 import { DataProvider } from '@/lib/store';
 
 export default function RootLayout() {
   return (
     <DataProvider>
-      <StatusBar style="light" />
+      <ThemeProvider>
+        <RootStack />
+      </ThemeProvider>
+    </DataProvider>
+  );
+}
+
+function RootStack() {
+  const { scheme } = useTheme();
+  return (
+    <>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.bg },
@@ -24,6 +36,6 @@ export default function RootLayout() {
         <Stack.Screen name="scenario" options={{ title: '演练模式' }} />
         <Stack.Screen name="settings" options={{ title: '设置', presentation: 'modal' }} />
       </Stack>
-    </DataProvider>
+    </>
   );
 }

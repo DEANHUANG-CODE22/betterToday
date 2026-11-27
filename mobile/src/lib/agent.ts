@@ -81,9 +81,9 @@ export function dailyVoice(
   if (rhr != null) {
     const base = rhrBase?.avg28 != null ? Math.round(rhrBase.avg28) : undefined;
     if (base == null) body = `静息心率 ${rhr}。`;
-    else if (rhrBase?.trend === 'up') body = `静息心率 ${rhr}，比你的 28 日基线 ${base} 高。`;
-    else if (rhrBase?.trend === 'down') body = `静息心率 ${rhr}，比你的 28 日基线 ${base} 低。`;
-    else body = `静息心率 ${rhr}，和你的 28 日基线 ${base} 差不多。`;
+    else if (rhrBase?.trend === 'up') body = `静息心率 ${rhr}，比你平时的 ${base} 高。`;
+    else if (rhrBase?.trend === 'down') body = `静息心率 ${rhr}，比你平时的 ${base} 低。`;
+    else body = `静息心率 ${rhr}，和你平时的 ${base} 差不多。`;
   }
   return { title, body };
 }
@@ -105,7 +105,7 @@ export function confidenceTip(sleep: SleepNight[], today: ISODate, confidence: C
   }
   if (!hasTonight) return '昨夜没有睡眠记录。今晚戴表睡，明天会更确定。';
   if (nights < 3) return `近 7 天我只看到 ${nights} 晚睡眠。再戴表睡 ${3 - nights} 晚，我就能比你自己的平时。`;
-  if (tonight && tonight.hrv == null) return '昨夜没测到 HRV，只能按基线看。';
+  if (tonight && tonight.hrv == null) return '昨夜没测到 HRV，只能按你平时的数看。';
   return undefined;
 }
 
